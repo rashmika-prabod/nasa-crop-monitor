@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crop Expert – Field Map</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:#4399bf;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#fff;overflow:hidden}
+.app{height:100%;display:grid;grid-template-columns:1fr auto;gap:clamp(12px,3vw,48px);align-items:center;padding:clamp(12px,4vw,60px)}
+.map{position:relative;height:min(100%,calc(100vh - 80px));min-height:300px;background:#000;outline:1px dotted #fff;outline-offset:-1px;overflow:hidden;touch-action:none;cursor:grab}
+.map:active{cursor:grabbing}
+canvas{display:block;width:100%;height:100%}
+.crops{display:flex;flex-direction:column;gap:clamp(10px,2.4vw,40px)}
+.crop{width:clamp(56px,9vw,96px);aspect-ratio:1;border-radius:50%;border:3px solid transparent;font-size:clamp(26px,4.4vw,46px);display:grid;place-items:center;cursor:pointer;padding:0;transition:transform .15s,border-color .15s,box-shadow .15s}
+.crop:hover{transform:scale(1.06)}
+.crop:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.crop[aria-pressed=true]{border-color:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.28)}
+.hud{position:absolute;pointer-events:none;font-size:13px;line-height:1.45}
+.title{left:14px;top:12px;font-size:17px;font-weight:600}
+.title small{display:block;font-weight:400;font-size:12px;opacity:.7;margin-top:2px}
+.read{left:14px;top:62px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.25);padding:8px 10px;border-radius:6px;min-width:150px;font-variant-numeric:tabular-nums}
+.read b{font-weight:600}
+.layers{position:absolute;right:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:70%}
+.layers button{font:inherit;font-size:12px;color:#fff;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);border-radius:14px;padding:4px 10px;cursor:pointer}
+.layers button[aria-pressed=true]{background:#fff;color:#123}
+.layers button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.legend{left:14px;bottom:12px;width:min(260px,60%)}
+.bar{height:10px;border-radius:5px;background:linear-gradient(90deg,#2b4cc9,#22b8d9,#3fbf6a,#f2d336,#f08a2c,#d7262b)}
+.legend div:last-child{display:flex;justify-content:space-between;margin-top:3px;font-size:11px;opacity:.8}
+.tools{right:12px;bottom:10px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;pointer-events:auto;font-size:12px}
+.tools label{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);border-radius:14px;padding:4px 10px;cursor:pointer}
+.tools input[type=range]{width:90px;accent-color:#fff}
+.tools .help{font-size:11px;opacity:.6;text-align:right;pointer-events:none}
+@media (max-width:640px){
+ .app{grid-template-columns:1fr;grid-template-rows:1fr auto}
+ .map{height:100%}
+ .crops{flex-direction:row;justify-content:center}
+ .tools .help{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="map" id="map">
+    <div class="hud title" id="title"></div>
+    <div class="hud read" id="read">Hover over the field to read the soil values.</div>
+    <div class="layers" id="layers" style="pointer-events:auto"></div>
+    <div class="hud legend"><div class="bar"></div><div><span>Poor conditions</span><span>Best conditions</span></div></div>
+    <div class="hud tools"><label>Vertical exaggeration <input type="range" id="exag" min="1" max="10" step="0.5" value="4"><b id="exv">4×</b></label><label>Load elevation CSV <input type="file" id="csv" accept=".csv,.txt" hidden></label><span class="help" id="src"></span><span class="help">Drag to rotate · right-drag or shift-drag to pan · scroll to zoom</span></div>
+  </div>
+  <div class="crops" id="crops"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ---------- Field boundary (from crop_expert_app.kml, lon,lat) ---------- */
+const RING="80.96413659196503,7.041661412648231 80.96409566182081,7.041766389894127 80.9641351388363,7.041842146873452 80.9640931753521,7.041892462244991 80.96406044612628,7.041897221728853 80.96402158514853,7.041853339757774 80.96399636335514,7.041891313340125 80.96396080355868,7.041927891053464 80.96391568980839,7.041955748322421 80.96386487117023,7.041943707736886 80.96384126440564,7.041880682756291 80.96379884176561,7.041814924930818 80.96374849003918,7.041800506590515 80.9636531580549,7.041802690684973 80.96348982642085,7.04181906533709 80.96341179265876,7.041887147791768 80.96336885857723,7.041840343123764 80.9633770416292,7.041606968223247 80.96345270165163,7.041556226261369 80.96346728976685,7.041460401109984 80.96352232413089,7.041395799411837 80.96358795861484,7.041374820886919 80.96360058513682,7.041324986522063 80.96367387034469,7.04124801842974 80.96376052563771,7.041304913755649 80.96380488908171,7.041231180286282 80.96383996959253,7.041223400021701 80.96387702681317,7.041233375688585 80.96388583063252,7.041305175355427 80.96396159065577,7.041330941101958 80.96402499791182,7.04138789526806 80.96408684639144,7.041433594145959 80.96411067394658,7.041465359545294 80.96409476545797,7.041503067794351 80.96410447579431,7.041533774325606 80.9641371609117,7.041598236343234";
+const ll=RING.split(" ").map(s=>s.split(",").map(Number));
+const lat0=ll.reduce((a,p)=>a+p[1],0)/ll.length, lon0=ll.reduce((a,p)=>a+p[0],0)/ll.length;
+let pts=ll.map(([lo,la])=>[(lo-lon0)*111320*Math.cos(lat0*Math.PI/180),-(la-lat0)*110574]); // x east, z south (metres)
+const bx=pts.map(p=>p[0]),bz=pts.map(p=>p[1]);
+const X0=Math.min(...bx),X1=Math.max(...bx),Z0=Math.min(...bz),Z1=Math.max(...bz);
+const cx=(X0+X1)/2,cz=(Z0+Z1)/2; pts=pts.map(p=>[p[0]-cx,p[1]-cz]);
+const W=X1-X0,D=Z1-Z0,SZ=Math.max(W,D)*1.04; // square plane
+const toU=x=>(x+SZ/2)/SZ, toV=z=>(z+SZ/2)/SZ;
+
+/* ---------- Invented soil data ---------- */
+const PARAMS={
+  pH:{label:"pH",lo:4.8,hi:8.0,fmt:v=>v.toFixed(1),b:[[.2,.25,.25,.4],[.78,.7,.28,-.45],[.62,.18,.15,.25]]},
+  N:{label:"Nitrogen",lo:10,hi:70,fmt:v=>v.toFixed(0)+" ppm",b:[[.7,.3,.3,.45],[.2,.75,.25,-.4],[.45,.55,.12,.2]]},
+  P:{label:"Phosphorus",lo:5,hi:55,fmt:v=>v.toFixed(0)+" ppm",b:[[.3,.7,.28,.42],[.8,.25,.22,-.38],[.15,.2,.15,.25]]},
+  K:{label:"Potassium",lo:80,hi:300,fmt:v=>v.toFixed(0)+" ppm",b:[[.55,.8,.3,.4],[.25,.3,.28,-.35],[.85,.55,.14,.3]]}
+};
+const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v));
+function value(k,u,v){
+  const p=PARAMS[k];let s=.5+.04*Math.sin(u*14+v*9)*Math.cos(v*11+k.length);
+  for(const [x,y,sg,a] of p.b){const d=(u-x)**2+(v-y)**2;s+=a*Math.exp(-d/(2*sg*sg));}
+  return p.lo+(p.hi-p.lo)*clamp(s);
+}
+/* ---------- Elevation grid (DEM) ----------
+   The KML only carries one altitude (~532 m) and no elevation raster, so the default terrain below is a modelled
+   hillside anchored to that altitude. Load a lat,lon,elevation CSV to replace it with surveyed data. */
+const N=161;const dem=new Float32Array(N*N);let EMIN=0,EXAG=4,pmin=0,pmax=1;
+function synthElev(u,v){
+  return 529.2+4.6*(1-v)*(.7+.6*u)+1.1*Math.sin(u*6.1+1.2)*Math.cos(v*4.6)
+    -1.7*Math.exp(-((u-.6)**2)/.012)*(.4+v)+1.8*Math.exp(-((u-.25)**2+(v-.35)**2)/.02);
+}
+for(let j=0;j<N;j++)for(let i=0;i<N;i++)dem[j*N+i]=synthElev(i/(N-1),j/(N-1));
+function elev(u,v){const x=clamp(u,0,1)*(N-1),y=clamp(v,0,1)*(N-1),i=Math.min(N-2,x|0),j=Math.min(N-2,y|0),fx=x-i,fy=y-j;
+  return dem[j*N+i]*(1-fx)*(1-fy)+dem[j*N+i+1]*fx*(1-fy)+dem[(j+1)*N+i]*(1-fx)*fy+dem[(j+1)*N+i+1]*fx*fy;}
+function height(u,v){return (elev(u,v)-EMIN)*EXAG;}
+function slopeAt(u,v){const e=.004;return Math.hypot((elev(u+e,v)-elev(u-e,v))/(2*e*SZ),(elev(u,v+e)-elev(u,v-e))/(2*e*SZ))*100;}
+function refreshDem(){
+  EMIN=Infinity;pmin=Infinity;pmax=-Infinity;
+  for(let k=0;k<N*N;k++)EMIN=Math.min(EMIN,dem[k]);
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++)if(hx.isPointInPath(path,i/(N-1)*C,j/(N-1)*C)){const e=dem[j*N+i];pmin=Math.min(pmin,e);pmax=Math.max(pmax,e);}
+}
+
+/* Ideal ranges per crop: [from, to, tolerance, weight] */
+const CROPS=[
+  {id:"corn",name:"Corn",emoji:"🌽",bg:"#c0407e",ideal:{pH:[6.0,6.8,1.4,1],N:[45,65,30,2],P:[22,40,18,1],K:[160,250,100,1]}},
+  {id:"tomato",name:"Tomato",emoji:"🍅",bg:"#4d79f0",ideal:{pH:[6.2,6.8,1.3,2],N:[30,45,28,1],P:[30,50,20,2],K:[200,290,100,2]}},
+  {id:"broccoli",name:"Broccoli",emoji:"🥦",bg:"#f0a030",ideal:{pH:[6.0,7.0,1.4,2],N:[40,60,28,2],P:[18,35,18,1],K:[120,200,90,1]}},
+  {id:"pepper",name:"Bell pepper",emoji:"🫑",bg:"#c84b3c",ideal:{pH:[6.0,6.8,1.2,2],N:[30,48,28,1],P:[28,48,20,2],K:[150,230,100,1]}}
+];
+const LAYERS=[["all","Overall"],["pH","pH"],["N","Nitrogen"],["P","Phosphorus"],["K","Potassium"]];
+function fit(crop,k,u,v){const [a,b,t]=crop.ideal[k];const x=value(k,u,v);const d=Math.max(a-x,0,x-b);return clamp(1-d/t);}
+function score(crop,layer,u,v){
+  if(layer!=="all")return fit(crop,layer,u,v);
+  let s=0,w=0;for(const k in crop.ideal){const wt=crop.ideal[k][3];s+=wt*fit(crop,k,u,v);w+=wt;}return s/w;
+}
+
+/* ---------- Colour ramp: blue (worst) → red (best) ---------- */
+const STOPS=[[43,76,201],[34,184,217],[63,191,106],[242,211,54],[240,138,44],[215,38,43]];
+function ramp(t){t=clamp(t)*(STOPS.length-1);const i=Math.min(STOPS.length-2,Math.floor(t)),f=t-i;const a=STOPS[i],b=STOPS[i+1];return a.map((c,j)=>c+(b[j]-c)*f);}
+
+/* ---------- Heatmap texture ---------- */
+const G=384,C=1024;
+const path=new Path2D();pts.forEach(([x,z],i)=>{const px=toU(x)*C,py=toV(z)*C;i?path.lineTo(px,py):path.moveTo(px,py);});path.closePath();
+const hc=document.createElement("canvas");hc.width=hc.height=C;const hx=hc.getContext("2d");
+const lo=document.createElement("canvas");lo.width=lo.height=G;const lx=lo.getContext("2d");
+const tex=new THREE.CanvasTexture(hc);tex.anisotropy=4;
+let crop=CROPS[0],layer="all";
+function paint(){
+  const raw=new Float32Array(G*G);let mn=1,mx=0;
+  for(let j=0;j<G;j++)for(let i=0;i<G;i++){
+    const u=(i+.5)/G,v=(j+.5)/G,s=score(crop,layer,u,v);raw[j*G+i]=s;
+    if(hx.isPointInPath(path,u*C,v*C)){mn=Math.min(mn,s);mx=Math.max(mx,s);}
+  }
+  const E=new Float32Array(G*G);
+  for(let j=0;j<G;j++)for(let i=0;i<G;i++)E[j*G+i]=elev((i+.5)/G,(j+.5)/G);
+  const cs=SZ/G,CI=.5,img=lx.createImageData(G,G);
+  for(let j=0;j<G;j++)for(let i=0;i<G;i++){
+    const n=j*G+i,ip=Math.min(G-1,i+1),im=Math.max(0,i-1),jp=Math.min(G-1,j+1),jm=Math.max(0,j-1);
+    const sx=(E[j*G+ip]-E[j*G+im])/((ip-im)*cs),sz=(E[jp*G+i]-E[jm*G+i])/((jp-jm)*cs);
+    const nl=Math.hypot(sx*EXAG,1,sz*EXAG);
+    let f=.35+.85*Math.max(0,(sx*EXAG*.507+.761-sz*EXAG*.406)/nl);
+    const e0=Math.floor(E[n]/CI),e1=Math.floor(E[j*G+ip]/CI),e2=Math.floor(E[jp*G+i]/CI);
+    if(e0!==e1||e0!==e2){f*=Math.max(e0,e1,e2)%5===0?.3:.6;}
+    const c=ramp((raw[n]-mn)/Math.max(.001,mx-mn));
+    img.data.set([Math.min(255,c[0]*f),Math.min(255,c[1]*f),Math.min(255,c[2]*f),255],n*4);
+  }
+  lx.putImageData(img,0,0);
+  hx.clearRect(0,0,C,C);hx.save();hx.clip(path);hx.imageSmoothingQuality="high";hx.drawImage(lo,0,0,C,C);hx.restore();
+  tex.needsUpdate=true;
+  scoreRange={mn,mx};
+}
+let scoreRange={mn:0,mx:1};
+
+/* ---------- Three.js scene ---------- */
+const mapEl=document.getElementById("map");
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(2,devicePixelRatio));
+mapEl.insertBefore(renderer.domElement,mapEl.firstChild);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x000000);
+const camera=new THREE.PerspectiveCamera(40,1,.5,2000);
+scene.add(new THREE.AmbientLight(0xffffff,.75));
+const sun=new THREE.DirectionalLight(0xffffff,.55);sun.position.set(-60,90,40);scene.add(sun);
+
+const geo=new THREE.PlaneGeometry(SZ,SZ,110,110);geo.rotateX(-Math.PI/2);
+const pos=geo.attributes.position;
+
+const mesh=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:tex,transparent:true,alphaTest:.45,side:THREE.DoubleSide}));
+scene.add(mesh);
+const BASE=-3;let outline,skirt;
+const skirtMat=new THREE.MeshLambertMaterial({color:0x5a4634,side:THREE.DoubleSide});
+const grid=new THREE.GridHelper(SZ*2.2,22,0x333333,0x1c1c1c);grid.position.y=BASE-.2;scene.add(grid);
+function buildTerrain(){
+  for(let i=0;i<pos.count;i++)pos.setY(i,height(toU(pos.getX(i)),toV(pos.getZ(i))));
+  pos.needsUpdate=true;geo.computeVertexNormals();
+  [outline,skirt].forEach(o=>{if(o){scene.remove(o);o.geometry.dispose();}});
+  const top=[],sv=[];
+  pts.forEach((a,i)=>{const b=pts[(i+1)%pts.length],n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/1.5));
+    for(let s=0;s<n;s++){
+      const p=[a[0]+(b[0]-a[0])*s/n,a[1]+(b[1]-a[1])*s/n],q=[a[0]+(b[0]-a[0])*(s+1)/n,a[1]+(b[1]-a[1])*(s+1)/n];
+      const hp=height(toU(p[0]),toV(p[1])),hq=height(toU(q[0]),toV(q[1]));
+      if(s===0)top.push(new THREE.Vector3(p[0],hp+.1,p[1]));
+      top.push(new THREE.Vector3(q[0],hq+.1,q[1]));
+      sv.push(p[0],hp,p[1],p[0],BASE,p[1],q[0],hq,q[1],q[0],hq,q[1],p[0],BASE,p[1],q[0],BASE,q[1]);
+    }});
+  outline=new THREE.Line(new THREE.BufferGeometry().setFromPoints(top),new THREE.LineBasicMaterial({color:0xffffff}));
+  const sg=new THREE.BufferGeometry();sg.setAttribute("position",new THREE.Float32BufferAttribute(sv,3));sg.computeVertexNormals();
+  skirt=new THREE.Mesh(sg,skirtMat);scene.add(outline,skirt);
+}
+
+/* ---------- Orbit / pan / zoom (own implementation) ---------- */
+const tgt=new THREE.Vector3(0,3,0);let theta=-.5,phi=.95,rad=Math.max(W,D)*1.9;
+function place(){
+  phi=clamp(phi,.12,1.5);rad=clamp(rad,15,300);
+  camera.position.set(tgt.x+rad*Math.sin(phi)*Math.sin(theta),tgt.y+rad*Math.cos(phi),tgt.z+rad*Math.sin(phi)*Math.cos(theta));
+  camera.lookAt(tgt);
+}
+const ptrs=new Map();let moved=0;
+mapEl.addEventListener("pointerdown",e=>{if(e.target.closest(".layers"))return;mapEl.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});});
+mapEl.addEventListener("pointerup",e=>ptrs.delete(e.pointerId));
+mapEl.addEventListener("pointercancel",e=>ptrs.delete(e.pointerId));
+mapEl.addEventListener("contextmenu",e=>e.preventDefault());
+function pan(dx,dy){
+  const s=rad*.0016,r=new THREE.Vector3(),f=new THREE.Vector3();
+  camera.matrix.extractBasis(r,new THREE.Vector3(),f);r.y=0;r.normalize();f.y=0;f.normalize();
+  tgt.addScaledVector(r,-dx*s).addScaledVector(f,-dy*s);
+  tgt.x=clamp(tgt.x,-SZ/2,SZ/2);tgt.z=clamp(tgt.z,-SZ/2,SZ/2);
+}
+mapEl.addEventListener("pointermove",e=>{
+  const p=ptrs.get(e.pointerId);
+  if(!p){hover(e);return;}
+  const dx=e.clientX-p.x,dy=e.clientY-p.y;
+  if(ptrs.size===1){
+    if(e.shiftKey||e.buttons===2||e.ctrlKey)pan(dx,dy);else{theta-=dx*.0075;phi-=dy*.0075;}
+  }else if(ptrs.size===2){
+    const o=[...ptrs.entries()].find(([id])=>id!==e.pointerId)[1];
+    const before=Math.hypot(p.x-o.x,p.y-o.y),after=Math.hypot(e.clientX-o.x,e.clientY-o.y);
+    rad*=before/Math.max(1,after);pan(dx/2,dy/2);
+  }
+  p.x=e.clientX;p.y=e.clientY;place();
+});
+mapEl.addEventListener("wheel",e=>{e.preventDefault();rad*=Math.exp(e.deltaY*.0012);place();},{passive:false});
+
+/* ---------- Hover readout ---------- */
+const ray=new THREE.Raycaster(),m2=new THREE.Vector2(),readEl=document.getElementById("read");
+function hover(e){
+  const r=mapEl.getBoundingClientRect();
+  m2.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(m2,camera);
+  const h=ray.intersectObject(mesh)[0];
+  if(h){
+    const u=h.uv.x,v=1-h.uv.y;
+    if(hx.isPointInPath(path,u*C,v*C)){
+      let html="";for(const k in PARAMS)html+=`${PARAMS[k].label}: <b>${PARAMS[k].fmt(value(k,u,v))}</b><br>`;
+      html+=`Elevation: <b>${elev(u,v).toFixed(1)} m</b><br>Slope: <b>${slopeAt(u,v).toFixed(1)}%</b><br>${crop.name} fit: <b>${Math.round(score(crop,"all",u,v)*100)}%</b>`;
+      readEl.innerHTML=html;return;
+    }
+  }
+  readEl.textContent="Hover over the field to read the soil values.";
+}
+
+/* ---------- UI ---------- */
+const cropsEl=document.getElementById("crops"),layersEl=document.getElementById("layers"),titleEl=document.getElementById("title");
+CROPS.forEach(c=>{
+  const b=document.createElement("button");b.className="crop";b.style.background=c.bg;b.textContent=c.emoji;
+  b.setAttribute("aria-label",c.name);b.title=c.name;
+  b.onclick=()=>{crop=c;sync();};cropsEl.appendChild(b);c.el=b;
+});
+LAYERS.forEach(([id,label])=>{
+  const b=document.createElement("button");b.textContent=label;b.onclick=()=>{layer=id;sync();};layersEl.appendChild(b);b.dataset.id=id;
+});
+function sync(){
+  CROPS.forEach(c=>c.el.setAttribute("aria-pressed",c===crop));
+  [...layersEl.children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.id===layer));
+  const l=LAYERS.find(x=>x[0]===layer)[1];
+  titleEl.innerHTML=`${crop.name} · ${layer==="all"?"overall suitability":l+" suitability"}<small>Red = best conditions, blue = worst · elevation ${pmin.toFixed(1)}–${pmax.toFixed(1)} m (${(pmax-pmin).toFixed(1)} m relief)</small>`;
+  paint();
+}
+function resize(){const r=mapEl.getBoundingClientRect();renderer.setSize(r.width,r.height,false);renderer.domElement.style.width="100%";renderer.domElement.style.height="100%";camera.aspect=r.width/r.height;camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(mapEl);
+const srcEl=document.getElementById("src");srcEl.textContent="Terrain: modelled (anchored to the KML’s ~532 m)";
+function applyTerrain(){refreshDem();buildTerrain();sync();}
+document.getElementById("exag").oninput=e=>{EXAG=+e.target.value;document.getElementById("exv").textContent=EXAG+"×";applyTerrain();};
+document.getElementById("csv").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;let P=[];
+  for(const line of (await f.text()).split(/\r?\n/)){const a=line.split(/[,;\t]/).map(Number);
+    if(a.length>=3&&a.slice(0,3).every(isFinite)){let [la,lo,el]=a;if(Math.abs(la)>Math.abs(lo))[la,lo]=[lo,la];
+      P.push([(lo-lon0)*111320*Math.cos(lat0*Math.PI/180)-cx,-(la-lat0)*110574-cz,el]);}}
+  if(P.length<4){alert("Expected rows of latitude,longitude,elevation (at least 4).");return;}
+  if(P.length>2500){const st=Math.ceil(P.length/2500);P=P.filter((_,i)=>i%st===0);}
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){
+    const x=i/(N-1)*SZ-SZ/2,z=j/(N-1)*SZ-SZ/2;let sw=0,sv=0;
+    for(const p of P){const w=1/((x-p[0])**2+(z-p[1])**2+.001);sw+=w;sv+=w*p[2];}
+    dem[j*N+i]=sv/sw;}
+  srcEl.textContent="Terrain: your file ("+P.length+" points)";applyTerrain();
+};
+refreshDem();buildTerrain();tgt.y=(pmax-pmin)*EXAG*.4;rad=Math.max(W,D)*2.1;theta=-.6;phi=1.0;
+resize();place();sync();
+(function loop(){renderer.render(scene,camera);requestAnimationFrame(loop);})();
+</script>
+</body>
+</html>
