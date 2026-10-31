@@ -1,0 +1,32 @@
+Uma Oya data, October 2026
+Sam Anderson, University of Arizona
+
+soil_sites/   14 field sites, Oct 2026 (see READ_ME_FIRST.txt in there)
+maps/         Uma Oya basin, GeoTIFF, WGS84, ~90 m pixels
+tables/       basin-average rainfall by month and year (CHIRPS)
+gee/          Earth Engine script for NASA data at a field
+
+maps/
+  elevation_m.tif               elevation (m), SRTM
+  slope_deg.tif                 slope (degrees)
+  landcover_worldcover.tif      ESA WorldCover 2021: 10 tree, 30 grass, 40 crop, 50 built, 60 bare, 80 water
+  ndvi_median_2023_2026.tif     median Sentinel-2 NDVI 2023-2026
+  ndvi_wobble_sd_2023_2026.tif  std dev of the same NDVI (planted/cleared fields swing more)
+  cover_factor_C.tif            RUSLE C from NDVI, calibrated on the field sites
+  erosion_t_ha_yr.tif           RUSLE soil loss (t/ha/yr), hillslopes only
+  rain_erosivity_R.tif          RUSLE R (MJ mm/ha/h/yr)
+  slope_length_LS.tif           RUSLE LS (capped at 100)
+  soil_organic_carbon_g_kg.tif  OpenLandMap topsoil organic carbon (g/kg)
+  act_here.tif                  1 = farm-like NDVI swing, 2 = same and well connected to streams
+  basin / subbasins / streams   .geojson
+
+Notes
+- Soil values are from a handheld NIR scanner, not lab analyses. No N, P or K.
+- Site positions are rounded to ~220 m (private farms).
+- WorldCover misses a lot of the small vegetable plots.
+- The erosion map is a model, so read it as more vs. less rather than exact numbers.
+- The soil data isn't published yet, so please don't post the raw files publicly.
+
+Credit
+Soil and field data: S. Anderson, University of Arizona (2026).
+Sentinel-2 (Copernicus/ESA), CHIRPS (UCSB CHC), SRTM (NASA), ESA WorldCover 2021 (CC BY 4.0), OpenLandMap (CC BY-SA 4.0).

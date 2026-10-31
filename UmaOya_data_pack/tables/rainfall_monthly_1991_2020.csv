@@ -1,0 +1,13 @@
+month,season,mean_mm,dry_year_p20_mm,wet_year_p80_mm,share_of_yearly_erosive_rain_pct
+Jan,Maha,149.5,53.8,233.3,8.18
+Feb,inter,111.7,43.8,146.7,4.33
+Mar,inter,128.8,47.0,195.6,5.74
+Apr,inter,198.9,116.4,267.6,7.87
+May,Yala,159.0,106.5,214.3,6.96
+Jun,Yala,121.2,79.7,143.3,3.42
+Jul,Yala,97.3,68.6,123.5,2.5
+Aug,Yala,103.5,68.4,149.1,2.55
+Sep,inter,179.5,133.2,227.4,6.56
+Oct,Maha,269.0,196.5,387.6,13.08
+Nov,Maha,336.7,244.9,434.8,22.05
+Dec,Maha,283.1,187.1,380.5,16.76

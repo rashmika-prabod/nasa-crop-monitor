@@ -1,0 +1,271 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.959,
+     6.891
+    ]
+   },
+   "properties": {
+    "site": 1,
+    "pair": "Dyraaba",
+    "member": "managed (A)",
+    "label_19oct": "tomato plot",
+    "clean_pair": "yes",
+    "in_basin": true,
+    "position": "generalised to 0.002-degree cell centre (~221 m)"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.959,
+     6.887
+    ]
+   },
+   "properties": {
+    "site": 2,
+    "pair": "Dyraaba",
+    "member": "undisturbed (B)",
+    "label_19oct": "broadleaf forest",
+    "clean_pair": "yes",
+    "in_basin": true,
+    "position": "generalised to 0.002-degree cell centre (~221 m)"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.919,
+     6.869
+    ]
+   },
+   "properties": {
+    "site": 3,
+    "pair": "Welimada",
+    "member": "managed (A)",
+    "label_19oct": "tea",
+    "clean_pair": "yes (flag: less-disturbed member is a c. 2000 plantation)",
+    "in_basin": true,
+    "position": "generalised to 0.002-degree cell centre (~221 m)"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.919,
+     6.869
+    ]
+   },
+   "properties": {
+    "site": 4,
+    "pair": "Welimada",
+    "member": "undisturbed (B)",
+    "label_19oct": "eucalypt-type plantation (Eucalyptus sp. by leaf and stem form; species not identified); felled or disturbed c. 2000 and regrown",
+    "clean_pair": "yes (flag: less-disturbed member is a c. 2000 plantation)",
+    "in_basin": true,
+    "position": "generalised to 0.002-degree cell centre (~221 m)"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.825,
+     6.879
+    ]
+   },
+   "properties": {
+    "site": 5,
+    "pair": "Ambewela",
+    "member": "managed (A)",
+    "label_19oct": "leeks on stone terraces",
+    "clean_pair": "yes",
+    "in_basin": true,
+    "position": "generalised to 0.002-degree cell centre (~221 m)"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.819,
+     6.881
+    ]
+   },
+   "properties": {
+    "site": 6,
+    "pair": "Ambewela",
+    "member": "undisturbed (B)",
+    "label_19oct": "shrubby montane broadleaf",
+    "clean_pair": "yes",
+    "in_basin": true,
+    "position": "generalised to 0.002-degree cell centre (~221 m)"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.807,
+     6.877
+    ]
+   },
+   "properties": {
+    "site": 7,
+    "pair": "House",
+    "member": "managed (A)",
+    "label_19oct": "drip-irrigated vegetable beds",
+    "clean_pair": "no (outside basin)",
+    "in_basin": false,
+    "position": "generalised to 0.002-degree cell centre (~221 m)"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.809,
+     6.877
+    ]
+   },
+   "properties": {
+    "site": 8,
+    "pair": "House",
+    "member": "undisturbed (B)",
+    "label_19oct": "forest with grass understorey",
+    "clean_pair": "no (outside basin)",
+    "in_basin": false,
+    "position": "generalised to 0.002-degree cell centre (~221 m)"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.797,
+     6.915
+    ]
+   },
+   "properties": {
+    "site": 9,
+    "pair": "KandeEla",
+    "member": "managed (A)",
+    "label_19oct": "freshly sown raised beds (carrot-like seedlings)",
+    "clean_pair": "yes",
+    "in_basin": true,
+    "position": "generalised to 0.002-degree cell centre (~221 m)"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.797,
+     6.915
+    ]
+   },
+   "properties": {
+    "site": 10,
+    "pair": "KandeEla",
+    "member": "undisturbed (B)",
+    "label_19oct": "broadleaf forest",
+    "clean_pair": "yes",
+    "in_basin": true,
+    "position": "generalised to 0.002-degree cell centre (~221 m)"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.807,
+     6.965
+    ]
+   },
+   "properties": {
+    "site": 11,
+    "pair": "Bomburu",
+    "member": "managed (A): plantation",
+    "label_19oct": "mature turpentine (Syncarpia glomulifera; field ID) plantation with broadleaf understorey; closed canopy 1988-2026",
+    "clean_pair": "no (no cultivated member)",
+    "in_basin": true,
+    "position": "generalised to 0.002-degree cell centre (~221 m)"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.805,
+     6.965
+    ]
+   },
+   "properties": {
+    "site": 12,
+    "pair": "Bomburu",
+    "member": "undisturbed (B)",
+    "label_19oct": "dense montane broadleaf",
+    "clean_pair": "no (no cultivated member)",
+    "in_basin": true,
+    "position": "generalised to 0.002-degree cell centre (~221 m)"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.847,
+     6.939
+    ]
+   },
+   "properties": {
+    "site": 13,
+    "pair": "Perawela",
+    "member": "undisturbed (B)",
+    "label_19oct": "tall mixed broadleaf with vines",
+    "clean_pair": "yes",
+    "in_basin": true,
+    "position": "generalised to 0.002-degree cell centre (~221 m)"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.845,
+     6.939
+    ]
+   },
+   "properties": {
+    "site": 14,
+    "pair": "Perawela",
+    "member": "managed (A)",
+    "label_19oct": "carrots",
+    "clean_pair": "yes",
+    "in_basin": true,
+    "position": "generalised to 0.002-degree cell centre (~221 m)"
+   }
+  }
+ ]
+}

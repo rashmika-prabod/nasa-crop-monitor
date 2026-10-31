@@ -1,0 +1,20 @@
+# Per site: photo-derived ground cover (downward photos) and canopy (upward photos), beside the 30-point tape counts.
+# green ~ P, litter ~ L + M, bare ~ BS, rock ~ R. MAE vs tape over 14 sites (points of %): green 4.1, litter 16.5, bare 13.1, rock 6.6.
+# Cleaned sets (20 Oct 2026): up/down corrected by eye, repeats/copies and tape-sheet frames out of the means.
+# canopy_pct = non-sky share of upward photo; canopy_pct_pale also counts pale near-colourless pixels as sky.
+# sites.csv canopy_pct (used in C_tape) keeps the gravity-sorted means; this table's corrected means move S1 by +0.07%.
+site,pair,land_use,n_down,n_up,n_other,green_pct_mean,green_pct_sd,litter_pct_mean,bare_pct_photo_mean,rock_pct_mean,canopy_pct_mean,canopy_pct_sd,canopy_pct_pale_mean,n_points,P,L,M,BS,R,covered_pct,bare_pct,plant_pct
+1,Dyraaba,farm,29,0,1,23.9,13.0,22.7,45.4,8.0,,,,30,10,1,3,11,5,46.7,36.7,33.3
+2,Dyraaba,wild,25,18,0,42.0,13.9,53.1,1.2,3.7,82.6,4.7,80.9,30,13,16,0,1,0,96.7,3.3,43.3
+3,Welimada,farm,31,0,0,32.0,20.5,61.4,1.3,5.3,,,,30,9,18,0,3,0,90.0,10.0,30.0
+4,Welimada,wild,30,30,0,3.3,5.9,94.0,0.2,2.5,58.4,2.0,58.3,30,0,30,0,0,0,100.0,0.0,0.0
+5,Ambewela,farm,27,0,2,27.5,17.1,36.5,25.7,10.3,,,,30,9,1,0,8,12,33.3,26.7,30.0
+6,Ambewela,wild,30,30,0,49.6,20.0,42.2,2.1,6.1,61.0,19.1,60.3,30,14,15,0,1,0,96.7,3.3,46.7
+7,House,farm,30,0,0,25.7,18.5,62.5,11.6,0.1,,,,30,9,0,5,15,1,46.7,50.0,30.0
+8,House,wild,30,30,0,53.4,18.8,45.5,0.1,1.0,40.2,7.6,40.0,30,18,12,0,0,0,100.0,0.0,60.0
+9,KandeEla,farm,31,0,1,1.6,2.3,95.0,3.2,0.2,,,,30,5,0,0,25,0,16.7,83.3,16.7
+10,KandeEla,wild,30,30,0,49.1,20.2,46.7,1.4,2.8,73.9,7.2,72.7,30,16,14,0,0,0,100.0,0.0,53.3
+11,Bomburu,farm,30,30,0,6.1,5.6,88.0,0.7,5.2,73.6,8.9,72.3,30,2,26,0,2,0,93.3,6.7,6.7
+12,Bomburu,wild,26,26,0,21.7,16.3,73.7,0.8,3.8,82.6,2.3,81.5,26,5,18,0,3,0,88.5,11.5,19.2
+13,Perawela,wild,26,25,0,12.3,9.2,70.6,4.2,12.9,79.5,12.1,77.9,30,4,20,0,6,0,80.0,20.0,13.3
+14,Perawela,farm,29,0,0,45.1,19.1,17.6,28.4,8.9,,,,30,14,0,0,11,5,46.7,36.7,46.7

@@ -1,0 +1,16 @@
+Uma Oya field data, October 2026 - licence summary
+
+Data (data/), calibration (calibration/), photos (photos_cover_2026.zip) and documentation:
+  Creative Commons Attribution 4.0 International (CC BY 4.0)
+  https://creativecommons.org/licenses/by/4.0/legalcode
+  Copyright (c) 2026 Sam Anderson, University of Arizona.
+  You may share and adapt the material for any purpose, provided you give appropriate credit (see CITATION.cff),
+  provide a link to the licence, and indicate if changes were made.
+
+Code (model/reproduce.py, model/engine_2dcdd09/pipeline/*.py):
+  MIT License, Copyright (c) 2026 Samuel Anderson - full text in model/engine_2dcdd09/LICENSE.
+
+Third-party-derived rasters and aggregates under model/ keep their sources' terms: see model/LICENSES.md
+(OpenLandMap-derived layers CC BY-SA 4.0; MERIT Hydro-derived layers under ODbL 1.0; Copernicus Sentinel-2 and
+GLO-30 free and open with attribution; storm-frequency aggregates derived from Irrigation Department of Sri Lanka
+gauge records, credited).

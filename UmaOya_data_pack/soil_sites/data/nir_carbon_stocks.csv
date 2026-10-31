@@ -1,0 +1,17 @@
+# 0-30 cm organic-carbon stock per site, trapezoid over the four scan depths, bulk density ASSUMED 1.2 t m-3 (none measured).
+# The farm/wild contrast survives any single bulk density; the absolute t/ha do not (paper 02, Methods).
+site,pair,land_use,mean_oc_0_30_pct,oc_stock_t_ha
+5,Ambewela,farm,1.82,65.4
+6,Ambewela,wild,3.6,129.6
+11,Bomburu,farm,4.48,161.4
+12,Bomburu,wild,8.58,309.0
+1,Dyraaba,farm,2.0,72.0
+2,Dyraaba,wild,1.95,70.2
+7,House,farm,3.37,121.2
+8,House,wild,6.07,218.4
+9,KandeEla,farm,3.38,121.8
+10,KandeEla,wild,6.18,222.6
+14,Perawela,farm,3.55,127.8
+13,Perawela,wild,2.43,87.6
+3,Welimada,farm,1.83,66.0
+4,Welimada,wild,1.97,70.8

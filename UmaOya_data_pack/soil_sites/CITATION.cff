@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+message: "If you use these data or this code, please cite them as below."
+type: dataset
+title: "Uma Oya field cover, slake and NIR-carbon data (October 2026), Sentinel-2 cover-factor calibration and model reproduction kit"
+version: "1.0"
+# date-released: "YYYY-MM-DD"   # set on deposit (CFF needs a real date)
+authors:
+  - family-names: Anderson
+    given-names: Sam
+    affiliation: "University of Arizona"
+    orcid: "https://orcid.org/0000-0000-0000-0000"  # PLACEHOLDER: no ORCID found in the repo; replace before deposit
+license: CC-BY-4.0
+# doi: 10.5281/zenodo.XXXXXXX   # filled by Zenodo on publish
+keywords:
+  - soil erosion
+  - cover factor
+  - RUSLE
+  - MUSLE
+  - Sentinel-2
+  - NDVI
+  - aggregate stability
+  - soil organic carbon
+  - Sri Lanka
+  - Uma Oya
+abstract: >-
+  Field measurements at 14 sites (7 managed vs less-disturbed pairs) in the Uma Oya basin, Sri Lanka, 5-7 October 2026:
+  30-point cover tape, slake-test aggregate stability, handheld NIR soil-carbon predictions at four depths, and
+  metadata-stripped cover photos with derived cover statistics. Includes the field-calibrated Sentinel-2 NDVI cover
+  factor curve (C = exp(0.3404 - 3.8457 NDVI), NDVI 0.407-0.848) and a frozen snapshot of the Storm Model engine
+  (MIT) with a one-command script reproducing the basin sediment yields 2,073, 1,850 and 119 t km-2 yr-1.
+  Site positions are generalised to a 0.002-degree grid to protect private landholdings.
+preferred-citation:
+  type: dataset
+  authors:
+    - family-names: Anderson
+      given-names: Sam
+      affiliation: "University of Arizona"
+  title: "Uma Oya field cover, slake and NIR-carbon data (October 2026), Sentinel-2 cover-factor calibration and model reproduction kit"
+  publisher:
+    name: Zenodo
+  year: 2026
