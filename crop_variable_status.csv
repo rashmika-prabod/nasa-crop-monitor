@@ -1,0 +1,441 @@
+crop_name,variable,source_status
+Carrot,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Carrot,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Carrot,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Carrot,soil,DOA recommendation (qualitative); pH estimated
+Carrot,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Carrot,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Carrot,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Carrot,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Carrot,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Carrot,agroecological_area,DOA recommendation (qualitative suitability); climate numeric values estimated
+Carrot,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cabbage,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cabbage,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cabbage,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cabbage,soil,DOA recommendation
+Cabbage,soil_pH,DOA recommendation
+Cabbage,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cabbage,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cabbage,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cabbage,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cabbage,agroecological_area,DOA recommendation (qualitative suitability)
+Cabbage,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Beetroot,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Beetroot,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Beetroot,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Beetroot,soil,DOA recommendation
+Beetroot,soil_pH,DOA recommendation
+Beetroot,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Beetroot,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Beetroot,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Beetroot,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Beetroot,agroecological_area,DOA recommendation (qualitative suitability)
+Beetroot,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Leeks,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Leeks,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Leeks,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Leeks,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Leeks,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Leeks,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Leeks,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Leeks,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Leeks,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Leeks,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Leeks,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Radish,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Radish,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Radish,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Radish,soil,DOA recommendation
+Radish,soil_pH,DOA recommendation
+Radish,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Radish,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Radish,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Radish,season,DOA recommendation (year-round if moisture adequate)
+Radish,agroecological_area,DOA recommendation
+Radish,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Knol Khol,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Knol Khol,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Knol Khol,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Knol Khol,soil,DOA recommendation
+Knol Khol,soil_pH,DOA recommendation
+Knol Khol,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Knol Khol,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Knol Khol,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Knol Khol,season,DOA recommendation
+Knol Khol,agroecological_area,DOA recommendation
+Knol Khol,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bell Pepper (Capsicum),temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bell Pepper (Capsicum),rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bell Pepper (Capsicum),humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bell Pepper (Capsicum),soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bell Pepper (Capsicum),soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bell Pepper (Capsicum),sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bell Pepper (Capsicum),water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bell Pepper (Capsicum),elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bell Pepper (Capsicum),season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bell Pepper (Capsicum),agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bell Pepper (Capsicum),drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Brinjal,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Brinjal,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Brinjal,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Brinjal,soil,DOA recommendation
+Brinjal,soil_pH,DOA recommendation
+Brinjal,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Brinjal,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Brinjal,elevation,DOA recommendation
+Brinjal,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Brinjal,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Brinjal,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Pumpkin,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Pumpkin,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Pumpkin,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Pumpkin,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Pumpkin,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Pumpkin,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Pumpkin,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Pumpkin,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Pumpkin,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Pumpkin,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Pumpkin,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Okra,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Okra,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Okra,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Okra,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Okra,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Okra,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Okra,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Okra,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Okra,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Okra,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Okra,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Tomato,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Tomato,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Tomato,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Tomato,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Tomato,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Tomato,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Tomato,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Tomato,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Tomato,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Tomato,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Tomato,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bitter Gourd,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bitter Gourd,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bitter Gourd,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bitter Gourd,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bitter Gourd,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bitter Gourd,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bitter Gourd,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bitter Gourd,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bitter Gourd,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bitter Gourd,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Bitter Gourd,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Snake Gourd,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Snake Gourd,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Snake Gourd,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Snake Gourd,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Snake Gourd,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Snake Gourd,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Snake Gourd,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Snake Gourd,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Snake Gourd,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Snake Gourd,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Snake Gourd,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ridge Gourd,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ridge Gourd,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ridge Gourd,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ridge Gourd,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ridge Gourd,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ridge Gourd,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ridge Gourd,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ridge Gourd,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ridge Gourd,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ridge Gourd,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ridge Gourd,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cucumber,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cucumber,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cucumber,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cucumber,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cucumber,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cucumber,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cucumber,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cucumber,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cucumber,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cucumber,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cucumber,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ash Plantain,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ash Plantain,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ash Plantain,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ash Plantain,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ash Plantain,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ash Plantain,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ash Plantain,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ash Plantain,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ash Plantain,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ash Plantain,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Ash Plantain,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Long Beans (Yard-long bean),temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Long Beans (Yard-long bean),rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Long Beans (Yard-long bean),humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Long Beans (Yard-long bean),soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Long Beans (Yard-long bean),soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Long Beans (Yard-long bean),sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Long Beans (Yard-long bean),water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Long Beans (Yard-long bean),elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Long Beans (Yard-long bean),season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Long Beans (Yard-long bean),agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Long Beans (Yard-long bean),drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Winged Beans,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Winged Beans,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Winged Beans,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Winged Beans,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Winged Beans,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Winged Beans,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Winged Beans,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Winged Beans,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Winged Beans,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Winged Beans,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Winged Beans,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Gotukola,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Gotukola,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Gotukola,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Gotukola,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Gotukola,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Gotukola,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Gotukola,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Gotukola,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Gotukola,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Gotukola,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Gotukola,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Mukunuwenna,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Mukunuwenna,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Mukunuwenna,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Mukunuwenna,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Mukunuwenna,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Mukunuwenna,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Mukunuwenna,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Mukunuwenna,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Mukunuwenna,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Mukunuwenna,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Mukunuwenna,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kangkung,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kangkung,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kangkung,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kangkung,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kangkung,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kangkung,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kangkung,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kangkung,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kangkung,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kangkung,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kangkung,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cassava (Manioc),temperature,DOA recommendation
+Cassava (Manioc),rainfall,DOA recommendation
+Cassava (Manioc),humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cassava (Manioc),soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cassava (Manioc),soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cassava (Manioc),sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cassava (Manioc),water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cassava (Manioc),elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cassava (Manioc),season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cassava (Manioc),agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cassava (Manioc),drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sweet Potato,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sweet Potato,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sweet Potato,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sweet Potato,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sweet Potato,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sweet Potato,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sweet Potato,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sweet Potato,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sweet Potato,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sweet Potato,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sweet Potato,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Potato,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Potato,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Potato,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Potato,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Potato,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Potato,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Potato,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Potato,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Potato,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Potato,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Potato,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kiri Ala,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kiri Ala,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kiri Ala,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kiri Ala,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kiri Ala,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kiri Ala,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kiri Ala,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kiri Ala,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kiri Ala,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kiri Ala,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kiri Ala,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Innala,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Innala,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Innala,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Innala,soil,DOA recommendation
+Innala,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Innala,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Innala,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Innala,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Innala,season,DOA recommendation (year-round rainfall distribution preferred)
+Innala,agroecological_area,DOA recommendation
+Innala,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Raja Ala,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Raja Ala,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Raja Ala,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Raja Ala,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Raja Ala,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Raja Ala,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Raja Ala,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Raja Ala,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Raja Ala,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Raja Ala,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Raja Ala,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Maize,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Maize,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Maize,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Maize,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Maize,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Maize,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Maize,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Maize,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Maize,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Maize,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Maize,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Finger Millet (Kurakkan),temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Finger Millet (Kurakkan),rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Finger Millet (Kurakkan),humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Finger Millet (Kurakkan),soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Finger Millet (Kurakkan),soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Finger Millet (Kurakkan),sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Finger Millet (Kurakkan),water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Finger Millet (Kurakkan),elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Finger Millet (Kurakkan),season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Finger Millet (Kurakkan),agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Finger Millet (Kurakkan),drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sorghum,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sorghum,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sorghum,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sorghum,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sorghum,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sorghum,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sorghum,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sorghum,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sorghum,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sorghum,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Sorghum,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Foxtail Millet,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Foxtail Millet,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Foxtail Millet,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Foxtail Millet,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Foxtail Millet,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Foxtail Millet,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Foxtail Millet,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Foxtail Millet,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Foxtail Millet,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Foxtail Millet,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Foxtail Millet,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kodo Millet,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kodo Millet,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kodo Millet,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kodo Millet,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kodo Millet,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kodo Millet,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kodo Millet,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kodo Millet,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kodo Millet,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kodo Millet,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Kodo Millet,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green Gram (Mung Bean),temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green Gram (Mung Bean),rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green Gram (Mung Bean),humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green Gram (Mung Bean),soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green Gram (Mung Bean),soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green Gram (Mung Bean),sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green Gram (Mung Bean),water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green Gram (Mung Bean),elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green Gram (Mung Bean),season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green Gram (Mung Bean),agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green Gram (Mung Bean),drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cowpea,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cowpea,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cowpea,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cowpea,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cowpea,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cowpea,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cowpea,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cowpea,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cowpea,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cowpea,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Cowpea,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Black Gram,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Black Gram,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Black Gram,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Black Gram,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Black Gram,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Black Gram,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Black Gram,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Black Gram,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Black Gram,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Black Gram,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Black Gram,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Soybean,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Soybean,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Soybean,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Soybean,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Soybean,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Soybean,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Soybean,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Soybean,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Soybean,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Soybean,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Soybean,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Groundnut (Peanut),temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Groundnut (Peanut),rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Groundnut (Peanut),humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Groundnut (Peanut),soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Groundnut (Peanut),soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Groundnut (Peanut),sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Groundnut (Peanut),water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Groundnut (Peanut),elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Groundnut (Peanut),season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Groundnut (Peanut),agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Groundnut (Peanut),drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Big Onion,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Big Onion,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Big Onion,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Big Onion,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Big Onion,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Big Onion,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Big Onion,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Big Onion,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Big Onion,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Big Onion,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Big Onion,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Red Onion,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Red Onion,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Red Onion,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Red Onion,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Red Onion,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Red Onion,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Red Onion,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Red Onion,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Red Onion,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Red Onion,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Red Onion,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green & Dried Chilies,temperature,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green & Dried Chilies,rainfall,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green & Dried Chilies,humidity,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green & Dried Chilies,soil,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green & Dried Chilies,soil_pH,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green & Dried Chilies,sunlight,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green & Dried Chilies,water,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green & Dried Chilies,elevation,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green & Dried Chilies,season,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green & Dried Chilies,agroecological_area,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
+Green & Dried Chilies,drainage,ESTIMATE / general agronomy; not a verified Sri Lankan numeric DOA threshold
