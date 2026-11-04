@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crop Expert – Pick a Plot</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:#4399bf;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#fff;overflow:hidden}
+[hidden]{display:none!important}
+.app{height:100%;display:grid;grid-template-columns:1fr 290px;gap:clamp(12px,2.5vw,36px);padding:clamp(12px,3vw,44px)}
+.map{position:relative;height:100%;min-height:300px;background:#000;outline:1px dotted #fff;outline-offset:-1px;overflow:hidden;touch-action:none;cursor:grab}
+.map:active{cursor:grabbing}
+.leaflet-container{cursor:crosshair;font:inherit}
+canvas{display:block;width:100%;height:100%}
+.vx{background:#fff;border:3px solid #1b6a8c;border-radius:50%;cursor:move}
+.hud{position:absolute;pointer-events:none;font-size:13px;line-height:1.45;z-index:500}
+.title{left:14px;top:12px;font-size:17px;font-weight:600}
+.title small{display:block;font-weight:400;font-size:12px;opacity:.75;margin-top:2px}
+.read{left:14px;top:62px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.25);padding:8px 10px;border-radius:6px;min-width:170px;font-variant-numeric:tabular-nums}
+.legend{left:14px;bottom:12px;width:min(260px,60%)}
+.bar{height:10px;border-radius:5px;background:linear-gradient(90deg,#2b4cc9,#22b8d9,#3fbf6a,#f2d336,#f08a2c,#d7262b)}
+.legend div:last-child{display:flex;justify-content:space-between;margin-top:3px;font-size:11px;opacity:.85}
+.side{display:flex;flex-direction:column;gap:14px;overflow:auto;font-size:14px;line-height:1.45}
+.side section{display:flex;flex-direction:column;gap:10px}
+h1{font-size:19px;margin:0}
+p{margin:0}.hint{opacity:.85}.small{font-size:12px;opacity:.75}
+.row{display:flex;gap:6px}
+input[type=text]{flex:1;min-width:0;font:inherit;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.4);background:rgba(0,0,0,.25);color:#fff}
+input::placeholder{color:rgba(255,255,255,.65)}
+button{font:inherit;color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.4);border-radius:8px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){background:rgba(255,255,255,.26)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.main{background:#fff;color:#12445c;font-weight:600;border-color:#fff}
+button[aria-pressed=true]{background:#fff;color:#12445c}
+button:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.row button{flex:1}
+.area{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+label.rng{display:flex;align-items:center;gap:8px}label.rng input{flex:1;accent-color:#fff}
+#msg{min-height:1.4em;font-size:13px}
+@media (max-width:760px){
+ body{overflow:auto}
+ .app{height:auto;min-height:100%;grid-template-columns:1fr}
+ .map{height:62vh}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div>
+    <div class="map" id="pick"></div>
+    <div class="map" id="view" hidden>
+      <div class="hud title" id="title"></div>
+      <div class="hud read" id="read">Hover over the plot to read elevation and slope.</div>
+      <div class="hud legend" id="legend"><div class="bar"></div><div><span id="lo"></span><span id="hi"></span></div></div>
+    </div>
+  </div>
+  <div class="side">
+    <h1>Crop Expert – Pick a Plot</h1>
+    <section id="s1">
+      <div class="row"><input type="text" id="q" placeholder="Search a place, or paste lat, lon" aria-label="Search a place"><button id="find">Go</button></div>
+      <p class="hint">Zoom in, then click the map to mark each corner of your land. Drag a corner to adjust it.</p>
+      <div class="area" id="area">0 of 3 corners placed</div>
+      <div class="row"><button id="undo">Undo</button><button id="clear">Clear</button></div>
+      <button class="main" id="go" disabled>Generate 3D map</button>
+    </section>
+    <section id="s2" hidden>
+      <button id="back">← Edit plot</button>
+      <div class="row"><button id="m-sat" aria-pressed="true">Satellite</button><button id="m-elev" aria-pressed="false">Elevation colours</button></div>
+      <label class="rng">Height <input type="range" id="exag" min="1" max="30" step="1" value="4"><b id="exv">4×</b></label>
+      <button id="dl">Download plot (GeoJSON)</button>
+      <p class="small">Elevation comes from free global terrain data (about 30 m resolution). On a small plot that means only a few real measurements, so the relief is smooth and approximate. Height scaling is exaggerated to make it visible.</p>
+    </section>
+    <p id="msg" role="status"></p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=id=>document.getElementById(id),clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v)),say=t=>$("msg").textContent=t||"";
+const N=121,C=1024;
+
+/* ---------- Step 1: pick the plot on a satellite map ---------- */
+const map=L.map("pick").setView([7.87,80.77],8);
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxNativeZoom:18,maxZoom:21,attribution:"Imagery © Esri"}).addTo(map);
+const V=[],M=[],poly=L.polygon([],{color:"#fff",weight:2,fillColor:"#4399bf",fillOpacity:.25}).addTo(map);
+function local(P){const la0=P.reduce((a,p)=>a+p.lat,0)/P.length,lo0=P.reduce((a,p)=>a+p.lng,0)/P.length,mx=111320*Math.cos(la0*Math.PI/180);
+  return{la0,lo0,mx,pts:P.map(p=>[(p.lng-lo0)*mx,-(p.lat-la0)*110574])};}
+function areaM2(P){const q=local(P).pts;let s=0;q.forEach((a,i)=>{const b=q[(i+1)%q.length];s+=a[0]*b[1]-b[0]*a[1];});return Math.abs(s)/2;}
+const fmtA=a=>(a>=1e4?(a/1e4).toFixed(2)+" ha":Math.round(a)+" m²")+" · "+(a/4046.86).toFixed(2)+" acres";
+function redraw(){poly.setLatLngs(V);$("area").textContent=V.length>2?fmtA(areaM2(V)):V.length+" of 3 corners placed";$("go").disabled=V.length<3;}
+map.on("click",e=>{
+  V.push(e.latlng);
+  const m=L.marker(e.latlng,{draggable:true,icon:L.divIcon({className:"vx",iconSize:[16,16]})}).addTo(map);
+  m.on("drag",()=>{V[M.indexOf(m)]=m.getLatLng();redraw();});
+  M.push(m);redraw();
+});
+$("undo").onclick=()=>{if(V.length){V.pop();map.removeLayer(M.pop());redraw();}};
+$("clear").onclick=()=>{while(V.length)$("undo").onclick();};
+async function find(){
+  const q=$("q").value.trim();if(!q)return;
+  const m=q.match(/^(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)$/);
+  if(m){map.setView([+m[1],+m[2]],18);say("");return;}
+  say("Searching…");
+  try{
+    const r=await(await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+encodeURIComponent(q))).json();
+    if(r[0]){map.setView([+r[0].lat,+r[0].lon],17);say("");}else say("No place found. Try a nearby town, or paste coordinates as lat, lon.");
+  }catch{say("Search needs an internet connection.");}
+}
+$("find").onclick=find;$("q").onkeydown=e=>{if(e.key==="Enter")find();};
+
+/* ---------- Data fetching: terrain (AWS Terrarium tiles) and satellite texture (Esri) ---------- */
+const mer=(lon,lat,z)=>{const n=256*2**z,s=Math.sin(lat*Math.PI/180);return[(lon+180)/360*n,(.5-Math.log((1+s)/(1-s))/(4*Math.PI))*n];};
+const loadImg=u=>new Promise((ok,no)=>{const i=new Image();i.crossOrigin="anonymous";i.onload=()=>ok(i);i.onerror=()=>no(u);i.src=u;});
+function tiles(R,z){const a=mer(R.lonW,R.latN,z),b=mer(R.lonE,R.latS,z),tx=Math.floor(a[0]/256),ty=Math.floor(a[1]/256);
+  return{x0:a[0],y0:a[1],x1:b[0],y1:b[1],tx,ty,nx:Math.floor(b[0]/256)-tx+1,ny:Math.floor(b[1]/256)-ty+1};}
+async function getDem(R){
+  const z=14,t=tiles(R,z),c=document.createElement("canvas");c.width=t.nx*256;c.height=t.ny*256;
+  const g=c.getContext("2d",{willReadFrequently:true}),jobs=[];
+  for(let i=0;i<t.nx;i++)for(let j=0;j<t.ny;j++)
+    jobs.push(loadImg(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${t.tx+i}/${t.ty+j}.png`).then(im=>g.drawImage(im,i*256,j*256)));
+  await Promise.all(jobs);
+  const d=g.getImageData(0,0,c.width,c.height).data,W=c.width,H=c.height;
+  const h=(x,y)=>{x=clamp(x,0,W-1);y=clamp(y,0,H-1);const k=(y*W+x)*4;return d[k]*256+d[k+1]+d[k+2]/256-32768;};
+  const out=new Float32Array(N*N);
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){
+    const X=t.x0+(t.x1-t.x0)*i/(N-1)-t.tx*256-.5,Y=t.y0+(t.y1-t.y0)*j/(N-1)-t.ty*256-.5,ix=Math.floor(X),iy=Math.floor(Y),fx=X-ix,fy=Y-iy;
+    out[j*N+i]=h(ix,iy)*(1-fx)*(1-fy)+h(ix+1,iy)*fx*(1-fy)+h(ix,iy+1)*(1-fx)*fy+h(ix+1,iy+1)*fx*fy;
+  }
+  return out;
+}
+async function getSat(R){
+  let z=18;while(z>12){const t=tiles(R,z);if(t.nx*t.ny<=36)break;z--;}
+  const t=tiles(R,z),c=document.createElement("canvas");c.width=c.height=C;const g=c.getContext("2d"),kx=C/(t.x1-t.x0),ky=C/(t.y1-t.y0),jobs=[];let ok=0;
+  for(let i=0;i<t.nx;i++)for(let j=0;j<t.ny;j++)
+    jobs.push(loadImg(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${t.ty+j}/${t.tx+i}`)
+      .then(im=>{g.drawImage(im,((t.tx+i)*256-t.x0)*kx,((t.ty+j)*256-t.y0)*ky,256*kx+1,256*ky+1);ok++;}).catch(()=>{}));
+  await Promise.all(jobs);return ok?c:null;
+}
+
+/* ---------- Plot state, in metres around the plot centre (x east, z south) ---------- */
+let pts,SZ=100,dem=new Float32Array(N*N),EMIN=0,EXAG=4,pmin=0,pmax=1,path,satC,mode="sat",lat0,lon0,mx,cx,cz,area=0,ring=[];
+const toU=x=>(x+SZ/2)/SZ,toV=z=>(z+SZ/2)/SZ;
+function elev(u,v){const x=clamp(u)*(N-1),y=clamp(v)*(N-1),i=Math.min(N-2,x|0),j=Math.min(N-2,y|0),fx=x-i,fy=y-j;
+  return dem[j*N+i]*(1-fx)*(1-fy)+dem[j*N+i+1]*fx*(1-fy)+dem[(j+1)*N+i]*(1-fx)*fy+dem[(j+1)*N+i+1]*fx*fy;}
+const height=(u,v)=>(elev(u,v)-EMIN)*EXAG;
+function slopeAt(u,v){const e=.01;return Math.hypot((elev(u+e,v)-elev(u-e,v))/(2*e*SZ),(elev(u,v+e)-elev(u,v-e))/(2*e*SZ))*100;}
+const hc=document.createElement("canvas");hc.width=hc.height=C;const hx=hc.getContext("2d");
+const lo=document.createElement("canvas");lo.width=lo.height=256;const lx=lo.getContext("2d");
+const tex=new THREE.CanvasTexture(hc);tex.anisotropy=4;
+
+const STOPS=[[43,76,201],[34,184,217],[63,191,106],[242,211,54],[240,138,44],[215,38,43]];
+function ramp(t){t=clamp(t)*(STOPS.length-1);const i=Math.min(STOPS.length-2,Math.floor(t)),f=t-i;return STOPS[i].map((c,j)=>c+(STOPS[i+1][j]-c)*f);}
+function paint(){
+  hx.clearRect(0,0,C,C);hx.save();hx.clip(path);
+  if(mode==="sat"&&satC)hx.drawImage(satC,0,0);
+  else{
+    const G=256,img=lx.createImageData(G,G),rg=Math.max(pmax-pmin,.01);
+    for(let j=0;j<G;j++)for(let i=0;i<G;i++)img.data.set([...ramp((elev((i+.5)/G,(j+.5)/G)-pmin)/rg),255],(j*G+i)*4);
+    lx.putImageData(img,0,0);hx.imageSmoothingQuality="high";hx.drawImage(lo,0,0,C,C);
+  }
+  hx.restore();tex.needsUpdate=true;
+}
+
+/* ---------- Three.js scene ---------- */
+const view=$("view"),renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(2,devicePixelRatio));view.insertBefore(renderer.domElement,view.firstChild);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x000000);
+const camera=new THREE.PerspectiveCamera(40,1,1,5000);
+scene.add(new THREE.AmbientLight(0xffffff,.55));
+const sun=new THREE.DirectionalLight(0xffffff,.45);sun.position.set(-60,90,40);scene.add(sun);
+const mat=new THREE.MeshLambertMaterial({map:tex,alphaTest:.45,side:THREE.DoubleSide}),skirtMat=new THREE.MeshLambertMaterial({color:0x5a4634,side:THREE.DoubleSide});
+let mesh,geo,outline,skirt,grid;
+function buildTerrain(){
+  [mesh,outline,skirt,grid].forEach(o=>{if(o){scene.remove(o);o.geometry&&o.geometry.dispose();}});
+  geo=new THREE.PlaneGeometry(SZ,SZ,110,110);geo.rotateX(-Math.PI/2);
+  const pos=geo.attributes.position;
+  for(let i=0;i<pos.count;i++)pos.setY(i,height(toU(pos.getX(i)),toV(pos.getZ(i))));
+  geo.computeVertexNormals();mesh=new THREE.Mesh(geo,mat);
+  const BASE=-SZ*.03,step=Math.max(1.5,SZ/150),top=[],sv=[];
+  pts.forEach((a,i)=>{const b=pts[(i+1)%pts.length],n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/step));
+    for(let s=0;s<n;s++){
+      const p=[a[0]+(b[0]-a[0])*s/n,a[1]+(b[1]-a[1])*s/n],q=[a[0]+(b[0]-a[0])*(s+1)/n,a[1]+(b[1]-a[1])*(s+1)/n];
+      const hp=height(toU(p[0]),toV(p[1])),hq=height(toU(q[0]),toV(q[1]));
+      if(s===0)top.push(new THREE.Vector3(p[0],hp+SZ*.001,p[1]));
+      top.push(new THREE.Vector3(q[0],hq+SZ*.001,q[1]));
+      sv.push(p[0],hp,p[1],p[0],BASE,p[1],q[0],hq,q[1],q[0],hq,q[1],p[0],BASE,p[1],q[0],BASE,q[1]);
+    }});
+  outline=new THREE.Line(new THREE.BufferGeometry().setFromPoints(top),new THREE.LineBasicMaterial({color:0xffffff}));
+  const sg=new THREE.BufferGeometry();sg.setAttribute("position",new THREE.Float32BufferAttribute(sv,3));sg.computeVertexNormals();
+  skirt=new THREE.Mesh(sg,skirtMat);
+  grid=new THREE.GridHelper(SZ*2.2,22,0x333333,0x1c1c1c);grid.position.y=BASE-SZ*.002;
+  scene.add(mesh,outline,skirt,grid);
+}
+
+/* ---------- Orbit / pan / zoom ---------- */
+const tgt=new THREE.Vector3();let theta=-.6,phi=1,rad=100;
+function place(){
+  phi=clamp(phi,.12,1.5);rad=clamp(rad,SZ*.25,SZ*8);
+  camera.position.set(tgt.x+rad*Math.sin(phi)*Math.sin(theta),tgt.y+rad*Math.cos(phi),tgt.z+rad*Math.sin(phi)*Math.cos(theta));camera.lookAt(tgt);
+}
+const ptrs=new Map();
+view.addEventListener("pointerdown",e=>{view.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});});
+view.addEventListener("pointerup",e=>ptrs.delete(e.pointerId));
+view.addEventListener("pointercancel",e=>ptrs.delete(e.pointerId));
+view.addEventListener("contextmenu",e=>e.preventDefault());
+function pan(dx,dy){
+  const s=rad*.0016,r=new THREE.Vector3(),f=new THREE.Vector3();
+  camera.matrix.extractBasis(r,new THREE.Vector3(),f);r.y=0;r.normalize();f.y=0;f.normalize();
+  tgt.addScaledVector(r,-dx*s).addScaledVector(f,-dy*s);tgt.x=clamp(tgt.x,-SZ/2,SZ/2);tgt.z=clamp(tgt.z,-SZ/2,SZ/2);
+}
+view.addEventListener("pointermove",e=>{
+  const p=ptrs.get(e.pointerId);if(!p){hover(e);return;}
+  const dx=e.clientX-p.x,dy=e.clientY-p.y;
+  if(ptrs.size===1){if(e.shiftKey||e.buttons===2||e.ctrlKey)pan(dx,dy);else{theta-=dx*.0075;phi-=dy*.0075;}}
+  else if(ptrs.size===2){const o=[...ptrs.entries()].find(([id])=>id!==e.pointerId)[1];
+    rad*=Math.hypot(p.x-o.x,p.y-o.y)/Math.max(1,Math.hypot(e.clientX-o.x,e.clientY-o.y));pan(dx/2,dy/2);}
+  p.x=e.clientX;p.y=e.clientY;place();
+});
+view.addEventListener("wheel",e=>{e.preventDefault();rad*=Math.exp(e.deltaY*.0012);place();},{passive:false});
+
+const ray=new THREE.Raycaster(),m2=new THREE.Vector2(),readEl=$("read"),hint="Hover over the plot to read elevation and slope.";
+function hover(e){
+  const r=view.getBoundingClientRect();
+  m2.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(m2,camera);
+  const h=mesh&&ray.intersectObject(mesh)[0];
+  if(h){const u=h.uv.x,v=1-h.uv.y;
+    if(hx.isPointInPath(path,u*C,v*C)){
+      const lat=lat0-(v*SZ-SZ/2+cz)/110574,lon=lon0+(u*SZ-SZ/2+cx)/mx;
+      readEl.innerHTML=`${lat.toFixed(6)}, ${lon.toFixed(6)}<br>Elevation: <b>${elev(u,v).toFixed(1)} m</b><br>Slope: <b>${slopeAt(u,v).toFixed(1)}%</b>`;return;}}
+  readEl.textContent=hint;
+}
+
+/* ---------- Generate, UI wiring ---------- */
+function show(v){
+  $("pick").hidden=v!=="pick";$("s1").hidden=v!=="pick";view.hidden=v!=="view";$("s2").hidden=v!=="view";
+  if(v==="pick")setTimeout(()=>map.invalidateSize(),0);else resize();
+}
+function sync(){
+  $("m-sat").setAttribute("aria-pressed",mode==="sat");$("m-elev").setAttribute("aria-pressed",mode==="elev");
+  $("m-sat").disabled=!satC;
+  $("legend").hidden=!(mode==="elev"||!satC);$("lo").textContent=pmin.toFixed(1)+" m";$("hi").textContent=pmax.toFixed(1)+" m";
+  $("title").innerHTML=`Your plot<small>${fmtA(area)} · relief ${(pmax-pmin).toFixed(1)} m</small>`;
+  paint();
+}
+async function generate(){
+  const P=local(V);lat0=P.la0;lon0=P.lo0;mx=P.mx;
+  const bx=P.pts.map(p=>p[0]),bz=P.pts.map(p=>p[1]),X0=Math.min(...bx),X1=Math.max(...bx),Z0=Math.min(...bz),Z1=Math.max(...bz);
+  cx=(X0+X1)/2;cz=(Z0+Z1)/2;pts=P.pts.map(p=>[p[0]-cx,p[1]-cz]);SZ=Math.max(X1-X0,Z1-Z0,10)*1.04;
+  if(SZ>2500){say("That area is too big for one 3D view (limit is about 2 km across). Mark a smaller plot.");return;}
+  area=areaM2(V);ring=V.map(p=>[p.lng,p.lat]);
+  const R={lonW:lon0+(cx-SZ/2)/mx,lonE:lon0+(cx+SZ/2)/mx,latN:lat0-(cz-SZ/2)/110574,latS:lat0-(cz+SZ/2)/110574};
+  $("go").disabled=true;say("Downloading terrain and satellite imagery…");
+  try{[dem,satC]=await Promise.all([getDem(R),getSat(R)]);}
+  catch{say("Couldn’t download elevation data. Check your internet connection and try again.");$("go").disabled=false;return;}
+  path=new Path2D();pts.forEach(([x,z],i)=>{const px=toU(x)*C,py=toV(z)*C;i?path.lineTo(px,py):path.moveTo(px,py);});path.closePath();
+  EMIN=Infinity;pmin=Infinity;pmax=-Infinity;
+  for(let k=0;k<N*N;k++)EMIN=Math.min(EMIN,dem[k]);
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++)if(hx.isPointInPath(path,i/(N-1)*C,j/(N-1)*C)){const e=dem[j*N+i];pmin=Math.min(pmin,e);pmax=Math.max(pmax,e);}
+  if(!isFinite(pmin)){pmin=EMIN;pmax=EMIN+.1;}
+  EXAG=clamp(Math.round(SZ*.1/Math.max(pmax-pmin,.5)),1,30);$("exag").value=EXAG;$("exv").textContent=EXAG+"×";
+  mode=satC?"sat":"elev";
+  camera.near=SZ*.01;camera.far=SZ*40;camera.updateProjectionMatrix();
+  buildTerrain();tgt.set(0,(pmax-pmin)*EXAG*.4,0);rad=SZ*1.9;theta=-.6;phi=1;
+  show("view");sync();place();
+  say(satC?"":"Satellite imagery couldn’t be loaded, so elevation colours are shown instead.");$("go").disabled=false;
+}
+$("go").onclick=generate;
+$("back").onclick=()=>{show("pick");say("");};
+$("m-sat").onclick=()=>{mode="sat";sync();};$("m-elev").onclick=()=>{mode="elev";sync();};
+$("exag").oninput=e=>{EXAG=+e.target.value;$("exv").textContent=EXAG+"×";buildTerrain();};
+$("dl").onclick=()=>{
+  const c=ring.map(p=>[+p[0].toFixed(7),+p[1].toFixed(7)]);c.push(c[0]);
+  const b=new Blob([JSON.stringify({type:"Feature",properties:{area_m2:Math.round(area)},geometry:{type:"Polygon",coordinates:[c]}})],{type:"application/geo+json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="plot.geojson";a.click();
+};
+function resize(){const r=view.getBoundingClientRect();if(!r.width)return;renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(view);
+(function loop(){if(!view.hidden)renderer.render(scene,camera);requestAnimationFrame(loop);})();
+</script>
+</body>
+</html>
