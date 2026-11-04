@@ -1,0 +1,20 @@
+Plant Requirements: 
+
+Evapotranspiration : (Can be useful for identifying water requirement for each crop in different growth stages[https://www.fao.org/4/X0490E/x0490e00.htm#Contents])
+Humididty
+Temperature
+Rainfall
+soil ph value
+elevation
+sunlight
+soil quality
+soil water
+crop duration
+nutrients(Primary: nitrogen, phosphorous, potassium/ Secondary: calcium, Magnesium,sulfur / Macronutrients: Iron, Zinc, Copper, Boron, Manganese)
+
+
+Output Requirements:
+
+Yield
+Cost
+Sorted ROI
