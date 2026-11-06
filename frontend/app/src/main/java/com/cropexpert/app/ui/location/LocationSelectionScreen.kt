@@ -1,9 +1,7 @@
 package com.cropexpert.app.ui.location
 
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -35,6 +33,7 @@ import com.cropexpert.app.ui.theme.LightMint
 import com.cropexpert.app.ui.theme.SoftRed
 import com.cropexpert.app.ui.theme.WarningRed
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,11 +55,16 @@ fun LocationSelectionScreen(onConfirmLocation: () -> Unit) {
     LaunchedEffect(isLoading) {
         if (isLoading) {
             currentStepIndex = 0
-            // Increment telemetry steps
-            for (i in telemetrySteps.indices) {
-                currentStepIndex = i
-                delay(1000)
+            // Increment telemetry steps every 800ms
+            val job = launch {
+                while (currentStepIndex < telemetrySteps.size - 1) {
+                    delay(800)
+                    currentStepIndex++
+                }
             }
+            // Overall simulated processing time
+            delay(4000)
+            job.cancel()
             onConfirmLocation()
         }
     }
@@ -210,6 +214,7 @@ fun LocationSelectionScreen(onConfirmLocation: () -> Unit) {
                                 .fillMaxSize()
                                 .background(Color(0xFFC8E6C9))
                         ) {
+                            // Target Marker Refined
                             Box(
                                 modifier = Modifier.align(Alignment.Center),
                                 contentAlignment = Alignment.Center
@@ -316,7 +321,7 @@ fun LocationSelectionScreen(onConfirmLocation: () -> Unit) {
                                 color = Color(0xFF1A1C1E)
                             )
                             Surface(
-                                color = Color(0xFFDCF7E3),
+                                color = Color(0xFFDCF7E3), // Vibrant green
                                 shape = RoundedCornerShape(4.dp)
                             ) {
                                 Text(
@@ -484,10 +489,10 @@ fun IntelligenceRow(icon: ImageVector, label: String, value: String) {
             Text(text = label, color = Color.Gray, fontSize = 12.sp)
             Text(
                 text = value,
-                fontWeight = FontWeight.ExtraBold, // Highlighted scientific codes
+                fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
                 color = Color(0xFF1A1C1E),
-                fontFamily = FontFamily.Monospace, // Scientific Data look
+                fontFamily = FontFamily.Monospace,
                 letterSpacing = 0.5.sp
             )
         }
