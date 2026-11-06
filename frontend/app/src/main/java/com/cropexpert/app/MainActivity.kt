@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,10 +21,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.cropexpert.app.ui.dashboard.HomeDashboardScreen
 import com.cropexpert.app.ui.location.LocationSelectionScreen
 import com.cropexpert.app.ui.splash.SplashScreen
@@ -32,7 +35,9 @@ import com.cropexpert.app.ui.theme.LightMint
 import com.cropexpert.app.ui.theme.Typography
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object Home : Screen("home", "Home", Icons.Default.Home)
+    object Home : Screen("home/{lat}/{lon}", "Home", Icons.Default.Home) {
+        fun createRoute(lat: Double, lon: Double) = "home/$lat/$lon"
+    }
     object CropAdvisor : Screen("crop_advisor", "Crop Advisor", Icons.Default.Psychology)
     object FuturePlan : Screen("future_plan", "Future Plan", Icons.Default.Timeline)
     object MyFarm : Screen("my_farm", "My Farm", Icons.Default.Agriculture)
@@ -43,6 +48,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val navController = rememberNavController()
+            var selectedLatitude by rememberSaveable { mutableStateOf(7.8731) }
+            var selectedLongitude by rememberSaveable { mutableStateOf(80.7718) }
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentDestination = navBackStackEntry?.destination
             val currentRoute = currentDestination?.route
@@ -57,18 +64,28 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(typography = Typography) {
                 Scaffold(
                     bottomBar = {
-                        if (currentRoute != null && currentRoute !in listOf("splash", "location_selection")) {
+                        if (currentRoute != null && currentRoute != "splash" && !currentRoute.startsWith("location_selection")) {
                             NavigationBar(
                                 containerColor = LightMint,
                                 tonalElevation = 8.dp
                             ) {
                                 items.forEach { screen ->
+                                    val isSelected = currentDestination?.hierarchy?.any { 
+                                        it.route?.startsWith(screen.route.substringBefore("/{")) == true 
+                                    } == true
+
                                     NavigationBarItem(
                                         icon = { Icon(screen.icon, contentDescription = null) },
                                         label = { Text(screen.label) },
-                                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                                        selected = isSelected,
                                         onClick = {
-                                            navController.navigate(screen.route) {
+                                            val route = if (screen is Screen.Home) {
+                                                Screen.Home.createRoute(selectedLatitude, selectedLongitude)
+                                            } else {
+                                                screen.route
+                                            }
+
+                                            navController.navigate(route) {
                                                 popUpTo(navController.graph.findStartDestination().id) {
                                                     saveState = true
                                                 }
@@ -102,13 +119,21 @@ class MainActivity : ComponentActivity() {
                             })
                         }
                         composable("location_selection") {
-                            LocationSelectionScreen(onConfirmLocation = {
-                                navController.navigate(Screen.Home.route) {
+                            LocationSelectionScreen(onConfirmLocation = { lat, lon ->
+                                selectedLatitude = lat
+                                selectedLongitude = lon
+                                navController.navigate(Screen.Home.createRoute(lat, lon)) {
                                     popUpTo("location_selection") { inclusive = true }
                                 }
                             })
                         }
-                        composable(Screen.Home.route) {
+                        composable(
+                            route = Screen.Home.route,
+                            arguments = listOf(
+                                navArgument("lat") { type = NavType.StringType },
+                                navArgument("lon") { type = NavType.StringType }
+                            )
+                        ) {
                             HomeDashboardScreen(
                                 onNavigateToFuturePlan = {
                                     navController.navigate(Screen.FuturePlan.route)

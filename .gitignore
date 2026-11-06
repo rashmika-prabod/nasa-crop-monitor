@@ -38,3 +38,10 @@ __pycache__/
 venv/
 env/
 .env
+
+text
+# Python
+backend/venv/
+backend/__pycache__/
+backend/.env
+backend/service_account.json

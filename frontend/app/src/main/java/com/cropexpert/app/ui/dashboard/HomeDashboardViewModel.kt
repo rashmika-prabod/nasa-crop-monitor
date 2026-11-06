@@ -1,27 +1,100 @@
 package com.cropexpert.app.ui.dashboard
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.viewModelScope
+import com.cropexpert.app.data.repository.NasaWeatherRepository
+import com.cropexpert.app.domain.model.AgroTelemetry
+import com.cropexpert.app.domain.repository.WeatherRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
-data class TelemetryData(
-    val soilMoisture: String = "34%",
-    val soilPH: String = "6.2",
-    val ambientTemp: String = "29°C",
-    val upcomingRain: String = "12 mm"
-)
+class HomeDashboardViewModel(
+    savedStateHandle: SavedStateHandle,
+    private val repository: WeatherRepository = NasaWeatherRepository()
+) : ViewModel() {
 
-data class LandStatusData(
-    val district: String = "Anuradhapura",
-    val zone: String = "DL1b",
-    val elevation: String = "152m"
-)
+    private val latitude = savedStateHandle.get<String>("lat")?.toDoubleOrNull() ?: 7.8731
+    private val longitude = savedStateHandle.get<String>("lon")?.toDoubleOrNull() ?: 80.7718
 
-class HomeDashboardViewModel : ViewModel() {
-    private val _telemetry = MutableStateFlow(TelemetryData())
-    val telemetry: StateFlow<TelemetryData> = _telemetry.asStateFlow()
+    private val _telemetry = MutableStateFlow<AgroTelemetry?>(null)
+    val telemetry: StateFlow<AgroTelemetry?> = _telemetry.asStateFlow()
 
-    private val _landStatus = MutableStateFlow(LandStatusData())
-    val landStatus: StateFlow<LandStatusData> = _landStatus.asStateFlow()
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    private val _lastSuccessfulSync = MutableStateFlow<Long?>(null)
+    val lastSuccessfulSync: StateFlow<Long?> = _lastSuccessfulSync.asStateFlow()
+
+    private var refreshJob: Job? = null
+
+    init {
+        refreshData()
+        viewModelScope.launch {
+            while (isActive) {
+                delay(REFRESH_INTERVAL_MILLIS)
+                refreshData()
+            }
+        }
+    }
+
+    /**
+     * Triggers a telemetry refresh from the NASA Earth Engine backend.
+     */
+    fun refreshData() {
+        if (refreshJob?.isActive == true) return
+
+        refreshJob = viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            try {
+                repository.getLatestConditions(latitude, longitude).collect { result ->
+                    result.onSuccess {
+                        _telemetry.value = it
+                        _lastSuccessfulSync.value = System.currentTimeMillis()
+                    }.onFailure { error ->
+                        _errorMessage.value = error.localizedMessage
+                            ?: "Could not load farm conditions. Please try again."
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _errorMessage.value = error.localizedMessage
+                    ?: "Could not load farm conditions. Please try again."
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    companion object {
+        private const val REFRESH_INTERVAL_MILLIS = 5 * 60 * 1000L
+
+        val Factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(
+                modelClass: Class<T>,
+                extras: CreationExtras
+            ): T {
+                if (!modelClass.isAssignableFrom(HomeDashboardViewModel::class.java)) {
+                    throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+                }
+                return modelClass.cast(
+                    HomeDashboardViewModel(extras.createSavedStateHandle())
+                )
+            }
+        }
+    }
 }
