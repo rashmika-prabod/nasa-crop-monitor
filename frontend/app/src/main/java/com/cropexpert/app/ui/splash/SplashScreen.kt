@@ -184,9 +184,13 @@ fun SplashScreen(onNavigateToMain: () -> Unit) {
     LaunchedEffect(Unit) {
         if (!view.isInEditMode) {
             val window = (view.context as Activity).window
+            // Configure the window to allow content behind system bars
             WindowCompat.setDecorFitsSystemWindows(window, false)
+            
             val insetsController = WindowCompat.getInsetsController(window, view)
+            // Hide system bars (time, wifi, battery, navigation)
             insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            // Allow bars to be shown transiently with a swipe
             insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }
@@ -253,7 +257,7 @@ fun SplashScreen(onNavigateToMain: () -> Unit) {
                 // The Shield Body
                 Box(
                     modifier = Modifier
-                        .size(185.dp) // Refined for visual prominence
+                        .size(185.dp)
                         .clip(ShieldShape)
                         .background(Color(0xFF0D47A1)) // NASA style deep blue
                         .border(3.dp, Color.White.copy(alpha = 0.9f), ShieldShape),

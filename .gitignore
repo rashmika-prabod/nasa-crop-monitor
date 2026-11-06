@@ -1,0 +1,47 @@
+# --- Android / Gradle ---
+# Ignore the entire build folder at every level
+**/build/
+**/tmp/
+.gradle/
+captures/
+externalNativeBuild/
+.cxx/
+*.apk
+*.aar
+*.jks
+*.keystore
+
+# --- Compiled files ---
+*.class
+*.dex
+*.pyc
+
+# --- IDE Settings (IntelliJ/Android Studio) ---
+.idea/
+*.iml
+*.iws
+*.ipr
+/out/
+local.properties
+
+# --- Large Memory Dumps ---
+*.hprof
+java_pid*.hprof
+
+# --- OS Specific ---
+.DS_Store
+Thumbs.db
+
+# --- Python / Data Science ---
+.ipynb_checkpoints/
+__pycache__/
+venv/
+env/
+.env
+
+text
+# Python
+backend/venv/
+backend/__pycache__/
+backend/.env
+backend/service_account.json
