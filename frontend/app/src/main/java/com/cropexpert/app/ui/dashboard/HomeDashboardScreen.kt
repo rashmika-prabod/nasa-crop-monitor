@@ -35,8 +35,7 @@ import java.util.Locale
 
 @Composable
 fun HomeDashboardScreen(
-    onNavigateToFuturePlan: () -> Unit,
-    onNavigateToCropAdvisor: () -> Unit,
+    onNavigateToRotationPlans: () -> Unit,
     viewModel: HomeDashboardViewModel = viewModel(factory = HomeDashboardViewModel.Factory)
 ) {
     val telemetryState by viewModel.telemetry.collectAsState()
@@ -146,13 +145,18 @@ fun HomeDashboardScreen(
 
                             // Dynamic Values from State
                             ProfileRow(label = "DISTRICT", value = telemetry.district)
-                            ProfileRow(label = "ZONE", value = telemetry.zone)
+                            ProfileRow(label = "AGRO-ECOLOGICAL ZONE", value = telemetry.zone)
                             ProfileRow(label = "ELEVATION", value = telemetry.elevation)
+                            Text(
+                                "Zone boundaries are not connected; classification is not guessed.",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 10.sp
+                            )
 
                             Spacer(modifier = Modifier.weight(1f))
 
                             Button(
-                                onClick = onNavigateToCropAdvisor,
+                                onClick = onNavigateToRotationPlans,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(52.dp),
@@ -160,7 +164,7 @@ fun HomeDashboardScreen(
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Text(
-                                    text = "Get Advice",
+                                    text = "Compare rotation plans",
                                     color = ForestGreen,
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 16.sp
@@ -237,7 +241,7 @@ fun HomeDashboardScreen(
 
                 // 4. Explore CTA
                 Button(
-                    onClick = onNavigateToFuturePlan,
+                    onClick = onNavigateToRotationPlans,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
@@ -245,7 +249,7 @@ fun HomeDashboardScreen(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        text = "Explore 24-Month Climate Outlook",
+                        text = "Explore rotation strategies",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         color = Color.White
@@ -509,7 +513,6 @@ fun TelemetryCard(
 @Composable
 fun HomeDashboardPreview() {
     HomeDashboardScreen(
-        onNavigateToFuturePlan = {},
-        onNavigateToCropAdvisor = {}
+        onNavigateToRotationPlans = {}
     )
 }

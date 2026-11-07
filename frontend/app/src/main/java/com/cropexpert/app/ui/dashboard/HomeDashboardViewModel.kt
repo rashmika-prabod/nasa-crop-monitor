@@ -51,7 +51,7 @@ class HomeDashboardViewModel(
     }
 
     /**
-     * Triggers a telemetry refresh from the NASA Earth Engine backend.
+     * Refreshes field conditions for the selected coordinates.
      */
     fun refreshData() {
         if (refreshJob?.isActive == true) return

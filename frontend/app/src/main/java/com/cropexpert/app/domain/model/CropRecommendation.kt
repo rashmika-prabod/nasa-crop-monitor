@@ -14,6 +14,8 @@ data class CropRecommendationResponse(
     val temperatureModel: String,
     val suitabilityRankCorrelation: Double?,
     val topFiveOverlap: Int?,
+    val soilPHUsed: Double? = null,
+    val soilPHSource: String? = null,
     val recommendations: List<CropRecommendation> = emptyList()
 )
 

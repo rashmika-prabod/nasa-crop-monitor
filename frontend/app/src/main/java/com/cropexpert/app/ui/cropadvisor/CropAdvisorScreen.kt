@@ -80,31 +80,35 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.cropexpert.app.domain.model.CropRecommendation
 import com.cropexpert.app.domain.model.CropRecommendationResponse
+import com.cropexpert.app.data.api.NetworkConfig
 import com.cropexpert.app.ui.theme.ForestGreen
 import com.cropexpert.app.ui.theme.LightMint
 import com.cropexpert.app.ui.theme.VibrantLime
 import java.util.Locale
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CropAdvisorScreen(
+    soilPH: Double? = null,
+    onUseForRotation: (CropRecommendationResponse) -> Unit = {},
     viewModel: CropAdvisorViewModel = viewModel(factory = CropAdvisorViewModel.Factory)
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val preferences = remember {
-        context.getSharedPreferences("crop_advisor_colab", android.content.Context.MODE_PRIVATE)
+        context.getSharedPreferences("crop_advisor_hosted", android.content.Context.MODE_PRIVATE)
     }
     var backendUrl by rememberSaveable {
-        mutableStateOf(preferences.getString("base_url", "").orEmpty())
+        mutableStateOf(preferences.getString("base_url", NetworkConfig.BASE_URL).orEmpty())
     }
     var apiKey by remember {
         mutableStateOf(preferences.getString("api_key", "").orEmpty())
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(backendUrl, apiKey, soilPH) {
         if (backendUrl.isNotBlank() && apiKey.isNotBlank()) {
-            viewModel.loadRecommendations(backendUrl, apiKey)
+            viewModel.loadRecommendations(backendUrl, apiKey, soilPH)
         }
     }
     val recommendationsListState = rememberLazyListState()
@@ -130,7 +134,7 @@ fun CropAdvisorScreen(
             }
 
             item {
-                ColabConnectionPanel(
+                AdvisorConnectionPanel(
                     backendUrl = backendUrl,
                     onBackendUrlChange = { backendUrl = it },
                     apiKey = apiKey,
@@ -140,7 +144,7 @@ fun CropAdvisorScreen(
                             .putString("base_url", backendUrl.trim())
                             .putString("api_key", apiKey.trim())
                             .apply()
-                        viewModel.loadRecommendations(backendUrl, apiKey)
+                        viewModel.loadRecommendations(backendUrl, apiKey, soilPH)
                     }
                 )
             }
@@ -176,14 +180,14 @@ fun CropAdvisorScreen(
                 item {
                     EmptyRecommendations(
                         isLoading = false,
-                        message = "Start the Colab API, then enter its HTTPS tunnel URL and API key above."
+                        message = "Enter the shared service API key above to load recommendations."
                     )
                 }
             } else if (state.errorMessage != null && state.response == null) {
                 item {
                     ErrorPanel(
                         message = state.errorMessage.orEmpty(),
-                        onRetry = { viewModel.loadRecommendations(backendUrl, apiKey) }
+                        onRetry = { viewModel.loadRecommendations(backendUrl, apiKey, soilPH) }
                     )
                 }
             } else if (state.visibleRecommendations.isEmpty()) {
@@ -219,12 +223,65 @@ fun CropAdvisorScreen(
                     )
                 }
             }
+            state.response?.let { response ->
+                item {
+                    val climateCandidates = response.recommendations.filter {
+                        it.rankingMode.equals("climate", ignoreCase = true)
+                    }
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                "Continue to rotation plans",
+                                color = ForestGreen,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "${climateCandidates.size} climate-ranked crop candidates can be used to populate plan options. The candidate sets are not yet checked as complete rotations.",
+                                color = Color.DarkGray,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            if (soilPH != null) {
+                                val pHStatus = when {
+                                    response.soilPHUsed != null &&
+                                        response.soilPHSource.equals("Farmer-provided soil test", ignoreCase = true) &&
+                                        abs(response.soilPHUsed - soilPH) < 0.01 ->
+                                        "API used your soil-test pH ${response.soilPHUsed.format(1)}."
+                                    response.soilPHUsed != null ->
+                                        "API used ${response.soilPHSource ?: "reported"} pH ${response.soilPHUsed.format(1)}; manual pH was not confirmed."
+                                    else ->
+                                        "API did not report soil pH use. Check that the hosted service is up to date."
+                                }
+                                Text(
+                                    "Soil test pH ${soilPH.format(1)} · $pHStatus",
+                                    color = ForestGreen,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            Button(
+                                onClick = { onUseForRotation(response) },
+                                enabled = climateCandidates.isNotEmpty(),
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)
+                            ) {
+                                Text("Build rotation options", color = Color.White)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun ColabConnectionPanel(
+private fun AdvisorConnectionPanel(
     backendUrl: String,
     onBackendUrlChange: (String) -> Unit,
     apiKey: String,
@@ -241,7 +298,7 @@ private fun ColabConnectionPanel(
             verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Text(
-                text = "COLAB MODEL CONNECTION",
+                text = "CROP ADVISOR SERVICE",
                 color = ForestGreen,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
@@ -251,8 +308,8 @@ private fun ColabConnectionPanel(
                 value = backendUrl,
                 onValueChange = onBackendUrlChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Colab HTTPS tunnel URL") },
-                placeholder = { Text("https://your-session.ngrok-free.app") },
+                label = { Text("HTTPS service URL") },
+                placeholder = { Text("https://your-service.onrender.com") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
             )
@@ -260,7 +317,7 @@ private fun ColabConnectionPanel(
                 value = apiKey,
                 onValueChange = onApiKeyChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Colab API key") },
+                label = { Text("Service API key") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation()
             )

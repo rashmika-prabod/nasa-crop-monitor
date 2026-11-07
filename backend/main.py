@@ -1,35 +1,44 @@
 import logging
 import os
+import json
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Optional
 
 import ee
+import google.auth
+from google.oauth2 import service_account
 from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
 
+from crop_advisor import recommend_crops_endpoint
+
 logger = logging.getLogger(__name__)
 
-EE_ACCOUNT = os.getenv(
-    "EE_SERVICE_ACCOUNT",
-    "gee-crop-expert@umaoyaproject.iam.gserviceaccount.com",
-)
 EE_PROJECT = os.getenv("EE_PROJECT")
-EE_CREDENTIALS_FILE = Path(__file__).with_name("service_account.json")
+EE_CREDENTIALS_FILE = os.getenv("EE_SERVICE_ACCOUNT_FILE")
+EE_CREDENTIALS_JSON = os.getenv("EE_SERVICE_ACCOUNT_JSON")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        if not EE_CREDENTIALS_FILE.is_file():
-            raise FileNotFoundError(
-                f"Earth Engine credentials file not found: {EE_CREDENTIALS_FILE}"
+        if EE_CREDENTIALS_JSON:
+            credentials = service_account.Credentials.from_service_account_info(
+                json.loads(EE_CREDENTIALS_JSON),
+                scopes=["https://www.googleapis.com/auth/earthengine"],
             )
-        credentials = ee.ServiceAccountCredentials(
-            EE_ACCOUNT, str(EE_CREDENTIALS_FILE)
-        )
-        ee.Initialize(credentials, project=EE_PROJECT)
+        elif EE_CREDENTIALS_FILE and Path(EE_CREDENTIALS_FILE).is_file():
+            credentials = service_account.Credentials.from_service_account_file(
+                EE_CREDENTIALS_FILE,
+                scopes=["https://www.googleapis.com/auth/earthengine"],
+            )
+        else:
+            credentials, _ = google.auth.default(
+                scopes=["https://www.googleapis.com/auth/earthengine"]
+            )
+        ee.Initialize(credentials=credentials, project=EE_PROJECT)
         app.state.ee_initialization_error = None
         logger.info("Google Earth Engine initialized")
     except Exception as error:
@@ -39,6 +48,20 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_api_route(
+    "/recommend-crops",
+    recommend_crops_endpoint,
+    methods=["GET"],
+    name="recommend_crops",
+)
+
+
+@app.get("/health")
+def health(request: Request):
+    if request.app.state.ee_initialization_error is not None:
+        raise HTTPException(status_code=503, detail="Earth Engine is unavailable")
+    return {"status": "ok"}
 
 
 class TelemetryResponse(BaseModel):
@@ -57,6 +80,13 @@ class TelemetryResponse(BaseModel):
     soilPHDepthProfile: List[float]
     ambientTempHistory: List[float]
     rainForecast: List[float]
+
+
+class LocationProfileResponse(BaseModel):
+    district: str
+    agroZone: str
+    elevationMeters: Optional[float] = None
+    source: str
 
 
 def _sample_value(image, point, band: str, scale: int):
@@ -99,6 +129,53 @@ def _format_sample(value, formatter) -> str:
     if value is None:
         return "Unavailable"
     return formatter(value)
+
+
+@app.get("/location-profile", response_model=LocationProfileResponse)
+def get_location_profile(
+    request: Request,
+    lat: float = Query(..., ge=-90, le=90),
+    lon: float = Query(..., ge=-180, le=180),
+):
+    if request.app.state.ee_initialization_error is not None:
+        raise HTTPException(
+            status_code=503,
+            detail="Earth Engine is unavailable. Check the server credentials and configuration.",
+        )
+
+    try:
+        point = ee.Geometry.Point([lon, lat])
+        districts = (
+            ee.FeatureCollection("FAO/GAUL/2025/level2")
+            .filter(ee.Filter.eq("ISO3_CODE", "LKA"))
+            .filterBounds(point)
+            .limit(1)
+        )
+        values = ee.Dictionary(
+            {
+                "elevation": _sample_value(
+                    ee.Image("USGS/SRTMGL1_003"), point, "elevation", 30
+                ),
+                "district": ee.Algorithms.If(
+                    districts.size().gt(0),
+                    districts.first().get("GAUL2_NAME"),
+                    "Unavailable",
+                ),
+            }
+        ).getInfo()
+    except Exception as error:
+        logger.exception("Earth Engine location profile query failed")
+        raise HTTPException(
+            status_code=502,
+            detail="Could not retrieve location intelligence. Please try again.",
+        ) from error
+
+    return LocationProfileResponse(
+        district=values.get("district") or "Unavailable",
+        agroZone="Not mapped",
+        elevationMeters=values.get("elevation"),
+        source="District: FAO GAUL 2025 · Elevation: USGS SRTM GL1 (approximately 30 m)",
+    )
 
 
 @app.get("/analyze-farm", response_model=TelemetryResponse)
@@ -267,7 +344,7 @@ def get_telemetry(
 
     return TelemetryResponse(
         district=district,
-        agroZone="Unavailable",
+        agroZone="Not mapped",
         elevation=elevation,
         soilMoisture=soil_moisture,
         soilPH=soil_ph,

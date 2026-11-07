@@ -50,28 +50,30 @@ class CropAdvisorViewModel(
     val uiState: StateFlow<CropAdvisorUiState> = _uiState.asStateFlow()
     private var requestJob: Job? = null
 
-    fun loadRecommendations(baseUrl: String, apiKey: String) {
-        if (requestJob?.isActive == true) return
-
+    fun loadRecommendations(baseUrl: String, apiKey: String, soilPH: Double? = null) {
         val normalizedUrl = baseUrl.trim().trimEnd('/') + "/"
         if (!normalizedUrl.startsWith("https://", ignoreCase = true) || apiKey.isBlank()) {
             _uiState.value = _uiState.value.copy(
                 isConfigured = false,
-                errorMessage = "Enter the HTTPS Colab tunnel URL and API key."
+                errorMessage = "Enter the HTTPS service URL and API key."
             )
             return
         }
 
+        requestJob?.cancel()
         requestJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isLoading = true,
                 isConfigured = true,
-                errorMessage = null
+                errorMessage = null,
+                response = null,
+                visibleRecommendations = emptyList()
             )
             try {
                 val response = repository.getRecommendations(
                     latitude,
                     longitude,
+                    soilPH,
                     normalizedUrl,
                     apiKey.trim()
                 )

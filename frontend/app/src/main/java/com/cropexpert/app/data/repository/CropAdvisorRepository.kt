@@ -7,8 +7,9 @@ class CropAdvisorRepository {
     suspend fun getRecommendations(
         latitude: Double,
         longitude: Double,
+        soilPH: Double?,
         baseUrl: String,
         apiKey: String
     ): CropRecommendationResponse =
-        RetrofitClient.createApi(baseUrl).getCropRecommendations(latitude, longitude, apiKey)
+        RetrofitClient.createApi(baseUrl).getCropRecommendations(latitude, longitude, soilPH, apiKey)
 }

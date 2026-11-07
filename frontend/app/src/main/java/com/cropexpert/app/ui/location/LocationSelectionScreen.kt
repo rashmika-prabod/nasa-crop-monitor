@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -42,11 +43,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.content.ContextCompat
 import com.cropexpert.app.ui.theme.ForestGreen
 import com.cropexpert.app.ui.theme.LightMint
 import com.cropexpert.app.ui.theme.SoftRed
 import com.cropexpert.app.ui.theme.WarningRed
+import com.cropexpert.app.domain.model.AgroLocationProfile
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -59,20 +62,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-data class AgroZoneData(
-    val district: String,
-    val zoneCode: String,
-    val rainfallPattern: String
-)
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun LocationSelectionScreen(
-    onConfirmLocation: (Double, Double) -> Unit
+    onConfirmLocation: (Double, Double) -> Unit,
+    viewModel: LocationProfileViewModel = viewModel(factory = LocationProfileViewModel.Factory)
 ) {
     val context = LocalContext.current
+    val isPreview = LocalInspectionMode.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val coroutineScope = rememberCoroutineScope()
+    val locationProfileState by viewModel.uiState.collectAsState()
+    var showIntelligenceInfo by remember { mutableStateOf(false) }
 
     var searchQuery by remember { mutableStateOf("") }
     var searchMessage by remember { mutableStateOf<String?>(null) }
@@ -90,9 +91,10 @@ fun LocationSelectionScreen(
         position = CameraPosition.fromLatLngZoom(selectedLocation, 7f)
     }
 
-    // Dynamic Zone Profile Based on Selected Coordinates
-    val agroZoneData = remember(selectedLocation) {
-        resolveAgroZone(selectedLocation.latitude, selectedLocation.longitude)
+    LaunchedEffect(selectedLocation, isPreview) {
+        if (!isPreview) {
+            viewModel.resolveLocation(selectedLocation.latitude, selectedLocation.longitude)
+        }
     }
 
     // Fused Location Client Setup
@@ -198,9 +200,9 @@ fun LocationSelectionScreen(
     // Telemetry Steps Sequence
     val telemetrySteps = remember(selectedLocation) {
         listOf(
-            "Accessing NASA Earth Engine...",
-            "Retrieving 30m SRTM Elevation Data...",
-            "Running Forecasting Tournament...",
+            "Preparing field conditions...",
+            "Looking up district and SRTM elevation...",
+            "Preparing field location...",
             "Targeting Coordinates: [${String.format("%.4f", selectedLocation.latitude)}, ${String.format("%.4f", selectedLocation.longitude)}]..."
         )
     }
@@ -355,7 +357,7 @@ fun LocationSelectionScreen(
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "Accurate to ~15m",
+                                    text = "GPS point only; satellite data are coarser",
                                     color = Color.Gray,
                                     fontSize = 12.sp
                                 )
@@ -452,7 +454,7 @@ fun LocationSelectionScreen(
                                 Icon(Icons.Default.Height, null, tint = Color.White, modifier = Modifier.size(14.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text(
-                                    text = "SRTM 30m Grid Active",
+                                    text = "SRTM ELEVATION LAYER",
                                     color = Color.White,
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace
@@ -485,13 +487,43 @@ fun LocationSelectionScreen(
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Agro-Climatic Intelligence", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = ForestGreen)
-                        Spacer(Modifier.height(16.dp))
-                        IntelligenceRow(Icons.Default.Public, "District", agroZoneData.district)
-                        Divider(modifier = Modifier.alpha(0.05f))
-                        IntelligenceRow(Icons.Default.Eco, "Agro-Ecological Zone", agroZoneData.zoneCode)
-                        Divider(modifier = Modifier.alpha(0.05f))
-                        IntelligenceRow(Icons.Default.WaterDrop, "Rainfall Pattern", agroZoneData.rainfallPattern)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Agro-Climatic Profile", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = ForestGreen)
+                                Text("Based on the selected map point", color = Color.Gray, fontSize = 12.sp)
+                            }
+                            IconButton(onClick = { showIntelligenceInfo = true }) {
+                                Icon(Icons.Default.Info, contentDescription = "About agro-climatic profile", tint = ForestGreen)
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        when {
+                            locationProfileState.isLoading -> {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = ForestGreen)
+                                    Text("Looking up this location...", color = Color.Gray, fontSize = 13.sp)
+                                }
+                            }
+                            locationProfileState.errorMessage != null -> {
+                                Text(
+                                    locationProfileState.errorMessage.orEmpty(),
+                                    color = WarningRed,
+                                    fontSize = 13.sp
+                                )
+                                TextButton(onClick = {
+                                    viewModel.retry(selectedLocation.latitude, selectedLocation.longitude)
+                                }) {
+                                    Text("Retry lookup", color = ForestGreen)
+                                }
+                            }
+                            else -> locationProfileState.profile?.let { profile ->
+                                LocationProfileDetails(profile)
+                            } ?: LocationProfileDetails(null)
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(80.dp))
@@ -530,20 +562,41 @@ fun LocationSelectionScreen(
                 }
             }
         }
+        if (showIntelligenceInfo) {
+            AlertDialog(
+                onDismissRequest = { showIntelligenceInfo = false },
+                confirmButton = {
+                    TextButton(onClick = { showIntelligenceInfo = false }) {
+                        Text("Got it", color = ForestGreen)
+                    }
+                },
+                title = { Text("About this profile", color = ForestGreen) },
+                text = {
+                    Text(
+                        "District is looked up from FAO administrative boundaries. Elevation is sampled from the USGS SRTM elevation dataset at about 30 m resolution. An authoritative Sri Lankan agro-ecological zone boundary layer is not connected yet, so the app will not guess a zone or rainfall pattern."
+                    )
+                }
+            )
+        }
     }
 }
 
-fun resolveAgroZone(lat: Double, lon: Double): AgroZoneData {
-    return when {
-        // Western Province / Colombo bounds
-        lat in 6.7..7.2 && lon in 79.8..80.1 -> AgroZoneData("Colombo (Wet Zone)", "WL2a", "Bimodal (Yala / Maha)")
-        // Central Highlands / Kandy / Nuwara Eliya
-        lat in 6.8..7.4 && lon in 80.4..80.8 -> AgroZoneData("Nuwara Eliya (Upcountry)", "WU3", "Continuous Wet")
-        // Southern Province / Hambantota
-        lat in 6.0..6.5 && lon in 80.8..81.4 -> AgroZoneData("Hambantota (Semi-Arid)", "DL5", "Unimodal Maha Heavy")
-        // Default North Central / Dry Zone (Anuradhapura)
-        else -> AgroZoneData("Anuradhapura (Dry Zone)", "DL1b", "Bimodal (Yala / Maha)")
-    }
+@Composable
+private fun LocationProfileDetails(profile: AgroLocationProfile?) {
+    val elevation = profile?.elevationMeters?.let { String.format(Locale.getDefault(), "%.0f m", it) }
+        ?: "Unavailable"
+    IntelligenceRow(Icons.Default.Public, "District", profile?.district ?: "Unavailable")
+    Divider(modifier = Modifier.alpha(0.05f))
+    IntelligenceRow(Icons.Default.Height, "Elevation · SRTM", elevation)
+    Divider(modifier = Modifier.alpha(0.05f))
+    IntelligenceRow(Icons.Default.Eco, "Agro-ecological zone", profile?.agroZone ?: "Not mapped")
+    Text(
+        (profile?.source ?: "District: FAO GAUL 2025 · Elevation: USGS SRTM GL1") +
+            "\nAEZ boundary layer not connected; no zone is guessed.",
+        color = Color.Gray,
+        fontSize = 11.sp,
+        modifier = Modifier.padding(top = 8.dp)
+    )
 }
 
 @Composable
@@ -567,7 +620,14 @@ fun IntelligenceRow(icon: ImageVector, label: String, value: String) {
         Icon(icon, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(12.dp))
         Text(label, fontSize = 14.sp, color = Color.Gray, modifier = Modifier.weight(1f))
-        Text(value, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace, color = Color(0xFF1A1C1E))
+        Text(
+            value,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.ExtraBold,
+            fontFamily = FontFamily.Monospace,
+            color = Color(0xFF1A1C1E),
+            textAlign = TextAlign.End
+        )
     }
 }
 

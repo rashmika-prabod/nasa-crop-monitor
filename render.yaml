@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: nasa-crop-monitor-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: EE_PROJECT
+        value: umaoyaproject-513615
+      - key: EE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: CROP_ADVISOR_API_KEY
+        sync: false

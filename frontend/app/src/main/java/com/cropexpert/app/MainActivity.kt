@@ -30,20 +30,30 @@ import androidx.navigation.navArgument
 import com.cropexpert.app.ui.dashboard.HomeDashboardScreen
 import com.cropexpert.app.ui.cropadvisor.CropAdvisorScreen
 import com.cropexpert.app.ui.location.LocationSelectionScreen
+import com.cropexpert.app.domain.model.FarmProfile
+import com.cropexpert.app.domain.model.CropRecommendationResponse
+import com.cropexpert.app.domain.model.soilPHValue
+import com.cropexpert.app.ui.rotation.FarmProfileScreen
+import com.cropexpert.app.ui.rotation.FarmProfileSaver
+import com.cropexpert.app.ui.rotation.RotationPlanDetailScreen
+import com.cropexpert.app.ui.rotation.RotationPlansScreen
 import com.cropexpert.app.ui.splash.SplashScreen
 import com.cropexpert.app.ui.theme.ForestGreen
 import com.cropexpert.app.ui.theme.LightMint
 import com.cropexpert.app.ui.theme.Typography
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object Home : Screen("home/{lat}/{lon}", "Home", Icons.Default.Home) {
+    object Home : Screen("home/{lat}/{lon}", "Field", Icons.Default.Home) {
         fun createRoute(lat: Double, lon: Double) = "home/$lat/$lon"
     }
     object CropAdvisor : Screen("crop_advisor/{lat}/{lon}", "Crop Advisor", Icons.Default.Psychology) {
         fun createRoute(lat: Double, lon: Double) = "crop_advisor/$lat/$lon"
     }
-    object FuturePlan : Screen("future_plan", "Future Plan", Icons.Default.Timeline)
-    object MyFarm : Screen("my_farm", "My Farm", Icons.Default.Agriculture)
+    object FuturePlan : Screen("future_plan", "Rotation Plans", Icons.Default.Timeline)
+    object MyFarm : Screen("my_farm", "Farm Profile", Icons.Default.Agriculture)
+    object PlanDetails : Screen("plan_details/{planId}", "Plan Details", Icons.Default.Timeline) {
+        fun createRoute(planId: String) = "plan_details/$planId"
+    }
 }
 
 class MainActivity : ComponentActivity() {
@@ -53,6 +63,10 @@ class MainActivity : ComponentActivity() {
             val navController = rememberNavController()
             var selectedLatitude by rememberSaveable { mutableStateOf(7.8731) }
             var selectedLongitude by rememberSaveable { mutableStateOf(80.7718) }
+            var farmProfile by rememberSaveable(stateSaver = FarmProfileSaver) {
+                mutableStateOf(FarmProfile())
+            }
+            var advisorResponse by remember { mutableStateOf<CropRecommendationResponse?>(null) }
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentDestination = navBackStackEntry?.destination
             val currentRoute = currentDestination?.route
@@ -140,16 +154,8 @@ class MainActivity : ComponentActivity() {
                             )
                         ) {
                             HomeDashboardScreen(
-                                onNavigateToFuturePlan = {
+                                onNavigateToRotationPlans = {
                                     navController.navigate(Screen.FuturePlan.route)
-                                },
-                                onNavigateToCropAdvisor = {
-                                    navController.navigate(
-                                        Screen.CropAdvisor.createRoute(
-                                            selectedLatitude,
-                                            selectedLongitude
-                                        )
-                                    )
                                 }
                             )
                         }
@@ -160,13 +166,62 @@ class MainActivity : ComponentActivity() {
                                 navArgument("lon") { type = NavType.StringType }
                             )
                         ) {
-                            CropAdvisorScreen()
+                            CropAdvisorScreen(
+                                soilPH = farmProfile.soilPHValue(),
+                                onUseForRotation = { response ->
+                                    advisorResponse = response
+                                    navController.navigate(Screen.FuturePlan.route) {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            )
                         }
                         composable(Screen.FuturePlan.route) {
-                            PlaceholderScreen("Future Plan - 24-Month Climate Forecasting")
+                            RotationPlansScreen(
+                                profile = farmProfile,
+                                advisorResponse = advisorResponse,
+                                onEditProfile = { navController.navigate(Screen.MyFarm.route) },
+                                onOpenCropAdvisor = {
+                                    navController.navigate(
+                                        Screen.CropAdvisor.createRoute(
+                                            selectedLatitude,
+                                            selectedLongitude
+                                        )
+                                    )
+                                },
+                                onOpenPlan = { planId ->
+                                    navController.navigate(Screen.PlanDetails.createRoute(planId))
+                                }
+                            )
                         }
                         composable(Screen.MyFarm.route) {
-                            PlaceholderScreen("My Farm - Agro-Ecological Profile")
+                            FarmProfileScreen(
+                                profile = farmProfile,
+                                onSave = {
+                                    if (it.soilPH != farmProfile.soilPH) advisorResponse = null
+                                    farmProfile = it
+                                },
+                                onOpenCropAdvisor = {
+                                    navController.navigate(
+                                        Screen.CropAdvisor.createRoute(
+                                            selectedLatitude,
+                                            selectedLongitude
+                                        )
+                                    )
+                                }
+                            )
+                        }
+                        composable(
+                            route = Screen.PlanDetails.route,
+                            arguments = listOf(navArgument("planId") { type = NavType.StringType })
+                        ) { entry ->
+                            RotationPlanDetailScreen(
+                                planId = entry.arguments?.getString("planId").orEmpty(),
+                                profile = farmProfile,
+                                advisorResponse = advisorResponse,
+                                onBack = { navController.popBackStack() },
+                                onEditProfile = { navController.navigate(Screen.MyFarm.route) }
+                            )
                         }
                     }
                 }
