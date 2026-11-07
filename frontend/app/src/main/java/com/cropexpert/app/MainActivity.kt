@@ -28,6 +28,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.cropexpert.app.ui.dashboard.HomeDashboardScreen
+import com.cropexpert.app.ui.cropadvisor.CropAdvisorScreen
 import com.cropexpert.app.ui.location.LocationSelectionScreen
 import com.cropexpert.app.ui.splash.SplashScreen
 import com.cropexpert.app.ui.theme.ForestGreen
@@ -38,7 +39,9 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Home : Screen("home/{lat}/{lon}", "Home", Icons.Default.Home) {
         fun createRoute(lat: Double, lon: Double) = "home/$lat/$lon"
     }
-    object CropAdvisor : Screen("crop_advisor", "Crop Advisor", Icons.Default.Psychology)
+    object CropAdvisor : Screen("crop_advisor/{lat}/{lon}", "Crop Advisor", Icons.Default.Psychology) {
+        fun createRoute(lat: Double, lon: Double) = "crop_advisor/$lat/$lon"
+    }
     object FuturePlan : Screen("future_plan", "Future Plan", Icons.Default.Timeline)
     object MyFarm : Screen("my_farm", "My Farm", Icons.Default.Agriculture)
 }
@@ -81,6 +84,8 @@ class MainActivity : ComponentActivity() {
                                         onClick = {
                                             val route = if (screen is Screen.Home) {
                                                 Screen.Home.createRoute(selectedLatitude, selectedLongitude)
+                                            } else if (screen is Screen.CropAdvisor) {
+                                                Screen.CropAdvisor.createRoute(selectedLatitude, selectedLongitude)
                                             } else {
                                                 screen.route
                                             }
@@ -139,12 +144,23 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate(Screen.FuturePlan.route)
                                 },
                                 onNavigateToCropAdvisor = {
-                                    navController.navigate(Screen.CropAdvisor.route)
+                                    navController.navigate(
+                                        Screen.CropAdvisor.createRoute(
+                                            selectedLatitude,
+                                            selectedLongitude
+                                        )
+                                    )
                                 }
                             )
                         }
-                        composable(Screen.CropAdvisor.route) {
-                            PlaceholderScreen("Crop Advisor - Suitability Ranking")
+                        composable(
+                            route = Screen.CropAdvisor.route,
+                            arguments = listOf(
+                                navArgument("lat") { type = NavType.StringType },
+                                navArgument("lon") { type = NavType.StringType }
+                            )
+                        ) {
+                            CropAdvisorScreen()
                         }
                         composable(Screen.FuturePlan.route) {
                             PlaceholderScreen("Future Plan - 24-Month Climate Forecasting")

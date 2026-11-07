@@ -13,15 +13,17 @@ object RetrofitClient {
      */
     private const val BASE_URL = "http://127.0.0.1:8000/"
 
-    val api: NasaApiService by lazy {
+    val api: NasaApiService by lazy { createApi(BASE_URL) }
+
+    fun createApi(baseUrl: String): NasaApiService {
         val httpClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .callTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(600, TimeUnit.SECONDS)
+            .callTimeout(600, TimeUnit.SECONDS)
             .build()
 
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
+        return Retrofit.Builder()
+            .baseUrl(baseUrl)
             .client(httpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
