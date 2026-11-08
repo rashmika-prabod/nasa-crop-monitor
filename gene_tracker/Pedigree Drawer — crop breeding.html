@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pedigree Drawer — crop breeding</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--desk:#0a75a8;--ink:#fff;--pn:rgba(0,0,0,.36);color-scheme:light dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--desk:#062f47}}
+:root[data-theme="dark"]{--desk:#062f47}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--desk);color:var(--ink);font:14px/1.35 'DM Sans',system-ui,sans-serif;overflow:hidden}
+#app{display:flex;height:100%;gap:18px;padding:16px}
+#rail{width:104px;display:flex;flex-direction:column;align-items:center;gap:22px;flex:none}
+#np{background:#000;color:#fff;border:0;border-radius:22px;padding:16px 12px;font:700 15px 'DM Sans';cursor:pointer;width:100%;transition:transform .15s}
+#np:hover{transform:scale(1.05)}
+.sym{width:64px;height:64px;display:grid;place-items:center;font-weight:700;font-size:18px;cursor:grab;border:2px solid rgba(255,255,255,.5);user-select:none;transition:transform .15s}
+.sym:hover{transform:scale(1.1)}.sym.F{border-radius:50%}.D{background:#fff;color:#111}.R{background:#111;color:#fff}
+#rail small{opacity:.8;text-align:center;font-size:11px}
+#stage{position:relative;flex:1;min-width:0}
+.layer{position:absolute;height:120px;border-radius:16px;box-shadow:0 -2px 8px #0004}
+#lift{position:absolute;left:14px;right:14px;top:62px;height:110px;border-radius:16px;opacity:0;transition:transform .28s cubic-bezier(.2,1.5,.4,1),opacity .15s;z-index:2;box-shadow:0 -6px 18px #0006;pointer-events:none}
+#lift.on{opacity:1;transform:translateY(-56px)}
+.cp{position:absolute;right:14px;top:8px;width:54px;height:54px}
+.pi{width:100%;height:100%;border-radius:50%;background:#e8ff10;display:grid;place-items:center;font-size:28px;overflow:hidden;border:3px solid #fff8}
+.pi img{width:100%;height:100%;object-fit:cover}
+#tab{position:absolute;top:6px;z-index:5;display:flex;gap:8px;align-items:center;background:#000c;padding:4px 12px 4px 4px;border-radius:30px;opacity:0;transition:left .12s,opacity .15s;pointer-events:none}
+#tab.on{opacity:1}#tab .pi{width:34px;height:34px;font-size:18px}
+#front{position:absolute;left:0;right:0;top:62px;bottom:0;border-radius:18px;display:flex;flex-direction:column;z-index:3;box-shadow:0 -4px 20px #0005;overflow:hidden}
+#front.pull{animation:pull .55s cubic-bezier(.2,1.2,.3,1)}
+@keyframes pull{from{transform:translateY(-46px) scale(.97);opacity:.4}to{transform:none;opacity:1}}
+header{display:flex;gap:10px;align-items:center;padding:10px 84px 10px 14px;background:var(--pn);flex-wrap:wrap}
+header input.t{font:600 26px Fraunces,Georgia,serif;background:none;border:0;border-bottom:2px dashed #fff6;color:#fff;width:210px}
+header input.f{background:#0003;border:0;border-radius:8px;color:#fff;padding:7px 10px;width:170px}
+.btn{background:#0006;color:#fff;border:1px solid #fff4;border-radius:8px;padding:6px 10px;cursor:pointer;font:600 12px 'DM Sans'}
+.btn:hover{background:#000a}
+#front .cp{top:8px;right:12px}
+.body{flex:1;display:flex;min-height:0}
+#board{flex:1;position:relative;overflow:auto;background:radial-gradient(#fff3 1.2px,transparent 1.5px) 0 0/26px 26px}
+#cv{position:relative;width:2600px;height:1800px}
+#lines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#lines path{stroke:#0a0a0a;stroke-width:4;fill:none}
+.hint{position:sticky;left:10px;top:8px;display:inline-block;font-size:12px;opacity:.85;background:#0004;padding:4px 10px;border-radius:20px;z-index:4}
+.n{position:absolute;width:64px;height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;cursor:grab;border:2px solid #0008;touch-action:none;transition:box-shadow .15s}
+.n.f{border-radius:50%}.n.d{background:#fff;color:#111}.n.r{background:#111;color:#fff;border-color:#fff6}
+.n:hover{box-shadow:0 0 0 4px #ffd16699}.n.ls{box-shadow:0 0 0 4px #ffd166}
+.n input{width:58px;background:none;border:0;text-align:center;font:700 13px 'DM Sans';color:inherit;outline:none;padding:0}
+.n input:focus{background:#8883;border-radius:4px}
+.n span{font-size:12px;font-weight:600}
+.n.g{opacity:.5;border-style:dashed;cursor:pointer;transition:opacity .15s}.n.g:hover{opacity:.95}
+.lk{position:absolute;bottom:-9px;left:50%;margin-left:-7px;width:14px;height:14px;border-radius:50%;background:#ffd166;border:2px solid #000;cursor:pointer;opacity:0;transition:opacity .15s}
+.n:hover .lk{opacity:1}
+.side{width:370px;flex:none;display:flex;flex-direction:column;gap:10px;padding:10px;background:#0002;min-height:0}
+.pn{background:var(--pn);border-radius:16px;padding:8px}
+#rad{flex:none}#rad svg{width:100%;display:block}
+.lg{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:11px;padding:2px 6px}
+.lg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}
+#tw{flex:1;min-height:150px;overflow:auto;padding:0}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{position:sticky;top:0;background:#000;text-align:left;padding:6px;z-index:1;font-weight:600}
+td{border-top:1px solid #fff3;padding:3px 4px;vertical-align:middle}
+td input[type=text],td input[type=number],td select{width:100%;background:#0006;border:1px solid #fff2;border-radius:5px;color:#fff;padding:3px 5px;font:12px 'DM Sans'}
+td select option{color:#000}
+.fl{position:fixed;z-index:50;background:#000;color:#fff;border-radius:12px;padding:8px;box-shadow:0 8px 30px #0008;display:none;width:250px;font-size:12px}
+.fl .sc{max-height:230px;overflow:auto;margin-top:6px}
+.fl b{font-size:13px}.fl button{float:right;margin-left:6px}
+@media(max-width:900px){.side{width:280px}#rail{width:76px}}
+</style></head><body>
+<div id="app">
+ <aside id="rail"><button id="np">+ New page</button>
+  <div class="sym F R" draggable="true" data-k="F,0">R/F</div><div class="sym F D" draggable="true" data-k="F,1">D/F</div>
+  <div class="sym R" draggable="true" data-k="M,0">R/M</div><div class="sym D" draggable="true" data-k="M,1">D/M</div>
+  <small>R recessive · D dominant<br>F round · M square<br>Drag onto the pedigree</small></aside>
+ <main id="stage"><div id="layers"></div><div id="lift"></div><div id="tab"></div><section id="front"></section></main>
+</div>
+<div class="fl" id="tip"></div><div class="fl" id="ed"></div>
+<script>
+const $=s=>document.querySelector(s),E=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const COL=['#3d9b40','#ff9d12','#0f46dc','#b0145e','#c42618'];
+const EMO={tomato:'🍅',corn:'🌽',maize:'🌽',wheat:'🌾',rice:'🌾',potato:'🥔',carrot:'🥕',cabbage:'🥬',pepper:'🌶️',eggplant:'🍆',beetroot:'🟣'};
+const TN=['Drought','Heat','Salinity','Pest & disease'],TC=['#f2b134','#ee5a36','#3aa6db','#7fcf6f'];
+const IC=['#ffd166','#ef476f','#06d6a0','#4cc9f0','#f78c6b','#b388eb','#e9ff70','#fff'];
+const G=(n,t,d)=>({name:n,type:t,desc:d,inc:true});
+// Compact starter panel (conserved gene families from your CSV). Use “Import CSV” to load crop-specific rows.
+const ST=()=>[G('DREB2/CBF',0,'Master transcription factor switching on drought-protective genes'),G('NAC (SNAC-type)',0,'Transcription factor linked to drought tolerance and root growth'),G('NCED',0,'Makes ABA; controls stomatal closing'),G('P5CS',0,'Makes proline for osmotic adjustment'),G('DRO1-like',0,'Root-architecture gene; deeper roots reach more water'),G('PIP aquaporins',0,'Water channels in roots and leaves'),G('HSFA2',1,'Heat-shock transcription factor'),G('HSP101',1,'Chaperone rescuing heat-damaged proteins'),G('HSP70',1,'Chaperone protecting proteins during heat'),G('sHSP',1,'Small HSPs protecting membranes and pollen'),G('SOS1',2,'Pumps sodium out of cells'),G('HKT1',2,'Keeps sodium out of leaves'),G('NHX1',2,'Stores sodium in the vacuole')];
+const newPage=(crop,color)=>({id:Math.random(),crop,fam:'',color,img:null,genes:ST(),inds:[],couples:[],n:1});
+const gi=(p,u)=>p.inds.find(i=>i.uid==u);
+const pic=p=>`<div class="pi">${p.img?`<img src="${p.img}" alt="">`:(EMO[p.crop.trim().toLowerCase()]||'🌱')}</div>`;
+let pages=[],hov=null,ls=null;
+try{const s=localStorage.getItem('pedigree-drawer-v1');if(s)pages=JSON.parse(s)}catch(e){}
+const save=()=>{try{localStorage.setItem('pedigree-drawer-v1',JSON.stringify(pages))}catch(e){}};
+
+/* ===================== MARKOV CHAIN PREDICTOR =====================
+   >>> Replace this function with a better model later. <<<
+   Input : page p (historic data = every realised parent→child pair on this page), parents A and B.
+   Output: {geneName: predictedScore}
+   States: each gene’s observed range is split into 3 states (low/mid/high).
+   Transition matrix T[parentState][childState] starts from a smoothing prior (biased to “child ≈ parent”)
+   and is updated with counts from realised families. Prediction = expected child score under T[row of mid-parent].
+   With <2 observed values it falls back to the plain mid-parent mean. */
+function predict(p,A,B){const out={};
+ p.genes.forEach(g=>{const k=g.name,num=v=>v!=null&&v!==''&&!isNaN(v),vals=p.inds.map(i=>i.s[k]).filter(num).map(Number);
+  const mp=(+A.s[k]||0)/2+(+B.s[k]||0)/2;
+  if(vals.length<2){out[k]=+mp.toFixed(2);return}
+  const lo=Math.min(...vals),hi=Math.max(...vals),st=v=>hi==lo?1:Math.min(2,Math.max(0,Math.floor((v-lo)/(hi-lo)*3)));
+  const rep=[0,1,2].map(s=>{const m=vals.filter(v=>st(v)==s);return m.length?m.reduce((a,b)=>a+b)/m.length:lo+(s+.5)*(hi-lo)/3});
+  const T=[[1.5,.5,.2],[.4,1.5,.4],[.2,.5,1.5]];
+  p.couples.forEach(c=>{if(c.kid==null)return;const a=gi(p,c.a),b=gi(p,c.b),kd=gi(p,c.kid);if(!a||!b||!kd)return;
+   if([a.s[k],b.s[k],kd.s[k]].every(num))T[st((+a.s[k]+ +b.s[k])/2)][st(+kd.s[k])]+=1});
+  const row=T[st(mp)],sum=row.reduce((a,b)=>a+b);out[k]=+(row.reduce((a,w,s)=>a+w/sum*rep[s],0)).toFixed(2)});
+ return out}
+/* =================== END MARKOV CHAIN PREDICTOR =================== */
+
+function gp(p,c,s){const A=gi(p,c.a),B=gi(p,c.b),mx=(A.x+B.x)/2;return{mx,my:(A.y+B.y)/2,x:mx+(s=='M'?-80:80),y:Math.max(A.y,B.y)+150,gen:Math.max(A.gen,B.gen)+1,dom:A.dom||B.dom?1:0}}
+function mkKid(p,c,s){const g=gp(p,c,s),u=p.n++,i={uid:u,id:s=='M'?'m/c':'f/c',sex:s,dom:g.dom,x:g.mx,y:g.y,gen:g.gen,s:predict(p,gi(p,c.a),gi(p,c.b))};p.inds.push(i);c.kid=u;return i}
+function mkInd(p,sex,dom,x,y){const u=p.n++,i={uid:u,id:'#'+String(u).padStart(3,'0'),sex,dom,x,y,gen:0,s:{}};p.genes.forEach((g,k)=>i.s[g.name]=+(((u*7+k*5)%9-4)/2).toFixed(1));p.inds.push(i);return i}
+if(!pages.length){
+ const names=['Tomato','Corn','Wheat','Sorghum','Rice'];pages=names.map((n,i)=>newPage(n,COL[i]));
+ const p=pages[0];p.fam='Heat-tolerant lines';
+ const a=mkInd(p,'F',0,160,100),b=mkInd(p,'M',1,420,100),c=mkInd(p,'F',1,760,100),d=mkInd(p,'M',1,1020,100);
+ mkInd(p,'M',1,1300,100).dom=1;
+ const c1={a:a.uid,b:b.uid,kid:null};p.couples.push(c1);const k=mkKid(p,c1,'F');k.id='#002';
+ p.couples.push({a:c.uid,b:d.uid,kid:null});save()}
+
+/* ---------- stack / drawer ---------- */
+const st=$('#stage'),lift=$('#lift'),tab=$('#tab'),front=$('#front');let hk=-1;
+function renderStack(){const L=$('#layers');L.innerHTML='';
+ for(let i=Math.min(pages.length-1,7);i>=1;i--){const d=E('div','layer');d.style.cssText=`background:${pages[i].color};top:${62-i*8}px;left:${i*7}px;right:${i*7}px;filter:brightness(${1-i*.04})`;L.append(d)}
+ front.style.background=pages[0].color}
+function hideLift(){hk=-1;lift.className='';tab.className=''}
+st.onmousemove=e=>{const r=st.getBoundingClientRect(),n=pages.length-1;if(n<1||e.clientY-r.top>78)return hideLift();
+ // maps the cursor x-position to a page in the drawer: works for thousands of pages
+ const k=Math.min(n-1,Math.floor((e.clientX-r.left)/r.width*n))+1,p=pages[k];
+ if(k!=hk){hk=k;lift.className='';lift.style.background=p.color;lift.innerHTML=`<div class="cp">${pic(p)}</div>`;void lift.offsetWidth;lift.className='on';
+  tab.innerHTML=`${pic(p)}<b>${esc(p.crop)}</b><small>${esc(p.fam)} · #${k+1}</small>`}
+ tab.style.left=Math.min(r.width-230,Math.max(0,e.clientX-r.left-60))+'px';tab.className='on'};
+st.onmouseleave=hideLift;
+st.onclick=e=>{const r=st.getBoundingClientRect();if(hk>0&&e.clientY-r.top<=78)bring(hk)};
+function bring(k){pages.unshift(pages.splice(k,1)[0]);hideLift();renderAll();front.classList.remove('pull');void front.offsetWidth;front.classList.add('pull');save()}
+$('#np').onclick=()=>{const c=prompt('Which crop is this page for? (e.g. Tomato)');if(c===null)return;pages.unshift(newPage(c.trim()||'Untitled',COL[pages.length%COL.length]));hideLift();renderAll();front.classList.remove('pull');void front.offsetWidth;front.classList.add('pull');save()};
+
+/* ---------- front page ---------- */
+function renderFront(){const p=pages[0];
+ front.innerHTML=`<header><input class="t" id="crop" value="${esc(p.crop)}" title="Crop"><input class="f" id="fam" placeholder="Family / line name" value="${esc(p.fam)}">
+ <label class="btn">Set picture<input type="file" id="pf" accept="image/*" hidden></label><label class="btn">Import CSV<input type="file" id="cf" accept=".csv" hidden></label><button class="btn" id="dp">Delete page</button><div class="cp">${pic(p)}</div></header>
+ <div class="body"><div id="board"><div class="hint">Drag symbols in · click the yellow dot on one plant, then on a mate · click a plant to enter scores</div><div id="cv"><svg id="lines"></svg><div id="nodes"></div></div></div>
+ <aside class="side"><div class="pn" id="rad"></div><div class="pn" id="tw"></div></aside></div>`;
+ $('#crop').oninput=e=>{p.crop=e.target.value;save()};$('#crop').onchange=()=>{renderStack();$('.cp').innerHTML=pic(p)};
+ $('#fam').oninput=e=>{p.fam=e.target.value;save()};
+ $('#pf').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{p.img=r.result;$('#front .cp').innerHTML=pic(p);save()};r.readAsDataURL(f)};
+ $('#cf').onchange=e=>{const f=e.target.files[0];if(f)f.text().then(t=>importCsv(p,t))};
+ $('#dp').onclick=()=>{if(pages.length<2)return alert('Keep at least one page.');if(confirm('Delete this page?')){pages.shift();renderAll();save()}};
+ bindBoard()}
+
+function csvParse(t){const R=[];let r=[],f='',q=0;for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++}else q=0}else f+=c}else if(c=='"')q=1;else if(c==','){r.push(f);f=''}else if(c=='\n'||c=='\r'){if(c=='\r'&&t[i+1]=='\n')i++;r.push(f);f='';R.push(r);r=[]}else f+=c}if(f||r.length){r.push(f);R.push(r)}return R}
+function importCsv(p,t){const R=csvParse(t),h=R.shift().map(x=>x.trim()),ix=n=>h.indexOf(n);
+ const rows=R.filter(r=>r[ix('crop')]).map(r=>({crop:r[ix('crop')],st:r[ix('stress_to_target')],g:r[ix('gene_or_locus')],role:r[ix('role')],inc:/^y/i.test(r[ix('include')]||'y')}));
+ const cn=p.crop.trim().toLowerCase(),m=rows.filter(r=>r.crop.toLowerCase()==cn||r.crop.toLowerCase().includes(cn));
+ if(!m.length)return alert(`No rows for “${p.crop}”. Crops in this file: ${[...new Set(rows.map(r=>r.crop))].join(', ')}`);
+ const tm={drought:0,heat:1,salinity:2,disease:3,pest:3};let add=0;
+ m.forEach(r=>{if(!p.genes.some(g=>g.name==r.g)){p.genes.push({name:r.g,type:tm[r.st.toLowerCase()]??3,desc:r.role,inc:r.inc});add++}});
+ renderTable();radar();save();alert(`Added ${add} gene(s) for ${p.crop}.`)}
+
+/* ---------- pedigree board ---------- */
+const pos=(el,x,y)=>{el.style.left=(x-32)+'px';el.style.top=(y-32)+'px'};
+function nodeEl(i){const d=E('div',`n ${i.sex=='M'?'m':'f'} ${i.dom?'d':'r'}`,`<input value="${esc(i.id)}" aria-label="Plant id"><span>@f${i.gen}</span><i class="lk" title="Link to a mate"></i>`);d.dataset.u=i.uid;pos(d,i.x,i.y);return d}
+function renderBoard(){const p=pages[0],N=$('#nodes');N.innerHTML='';
+ p.inds.forEach(i=>N.append(nodeEl(i)));
+ p.couples.forEach((c,ci)=>{if(c.kid==null)['M','F'].forEach(s=>{const g=gp(p,c,s),d=E('div',`n g ${s=='M'?'m':'f'} ${g.dom?'d':'r'}`,`<b>${s=='M'?'m':'f'}/c</b><span>@f${g.gen}</span>`);d.dataset.c=ci;d.dataset.s=s;N.append(d)})});
+ drawLines()}
+function drawLines(){const p=pages[0];let h='';
+ p.couples.forEach((c,ci)=>{const A=gi(p,c.a),B=gi(p,c.b);if(!A||!B)return;const m=gp(p,c,'M');h+=`<path d="M${A.x} ${A.y}L${B.x} ${B.y}"/>`;
+  if(c.kid==null)['M','F'].forEach(s=>{const g=gp(p,c,s);h+=`<path d="M${m.mx} ${m.my}L${g.x} ${g.y-32}"/>`;const el=$(`.g[data-c="${ci}"][data-s="${s}"]`);if(el)pos(el,g.x,g.y)});
+  else{const k=gi(p,c.kid);if(k)h+=`<path d="M${m.mx} ${m.my}V${k.y-58}H${k.x}V${k.y-32}"/>`}});
+ $('#lines').innerHTML=h}
+function bindBoard(){const B=$('#board'),N=$('#nodes');renderBoard();
+ B.ondragover=e=>e.preventDefault();
+ B.ondrop=e=>{e.preventDefault();const k=e.dataTransfer.getData('text');if(!k.includes(','))return;const [s,d]=k.split(','),r=$('#cv').getBoundingClientRect();
+  mkInd(pages[0],s,+d,Math.max(40,e.clientX-r.left),Math.max(40,e.clientY-r.top));renderBoard();radar();save()};
+ N.onpointerdown=e=>{const n=e.target.closest('.n');if(!n||e.target.matches('input'))return;
+  if(e.target.matches('.lk'))return link(n);
+  const p=pages[0],g=n.classList.contains('g'),i=g?null:gi(p,n.dataset.u),sx=e.clientX,sy=e.clientY,ox=i?.x,oy=i?.y;let mv=0;
+  const m=ev=>{mv=Math.hypot(ev.clientX-sx,ev.clientY-sy);if(i&&mv>3){hideTip();i.x=Math.max(32,ox+ev.clientX-sx);i.y=Math.max(32,oy+ev.clientY-sy);pos(n,i.x,i.y);drawLines()}};
+  const u=()=>{removeEventListener('pointermove',m);removeEventListener('pointerup',u);if(mv<4)g?realize(n):openEd(i,n);else save()};
+  addEventListener('pointermove',m);addEventListener('pointerup',u)};
+ N.onchange=e=>{if(e.target.matches('input')){const i=gi(pages[0],e.target.parentNode.dataset.u);if(i){i.id=e.target.value;save()}}};
+ N.onpointerover=e=>{const n=e.target.closest('.n');if(!n||n===N.__h)return;N.__h=n;const p=pages[0];
+  if(n.classList.contains('g')){const c=p.couples[n.dataset.c],s=predict(p,gi(p,c.a),gi(p,c.b));hov={gs:s};showTip(`<b>Predicted ${n.dataset.s=='M'?'male':'female'} child</b><br>Click to bring it to life`,s,n)}
+  else{const i=gi(p,n.dataset.u);hov={u:i.uid};showTip(`<b>${esc(i.id)}@f${i.gen}</b>`,i.s,n)}radar()};
+ N.onpointerout=e=>{if(!e.relatedTarget||!e.relatedTarget.closest||e.relatedTarget.closest('.n')!==N.__h){N.__h=null;hov=null;tipT=setTimeout(hideTip,250);radar()}}}
+function link(n){const p=pages[0],i=gi(p,n.dataset.u);if(!i)return;
+ if(!ls){ls=i;n.classList.add('ls');return}
+ if(ls.uid!=i.uid&&ls.sex!=i.sex&&!p.couples.some(c=>[c.a,c.b].includes(i.uid)&&[c.a,c.b].includes(ls.uid)))p.couples.push({a:ls.uid,b:i.uid,kid:null});
+ ls=null;renderBoard();save()}
+function realize(n){const p=pages[0],c=p.couples[n.dataset.c],k=mkKid(p,c,n.dataset.s);hideTip();renderBoard();radar();save();openEd(k,$(`.n[data-u="${k.uid}"]`))}
+
+/* ---------- gene-score tables (hover = read-only, click = editable) ---------- */
+const tip=$('#tip'),ed=$('#ed');let tipT;
+function place(f,n){const r=n.getBoundingClientRect();f.style.display='block';f.style.left=Math.min(innerWidth-270,r.right+10)+'px';f.style.top=Math.max(8,Math.min(innerHeight-f.offsetHeight-8,r.top))+'px'}
+function showTip(title,s,n){clearTimeout(tipT);if(ed.style.display=='block')return;
+ const p=pages[0];tip.innerHTML=title+`<div class="sc"><table><tr><th>Gene</th><th>Score</th></tr>${p.genes.map(g=>`<tr><td>${esc(g.name)}</td><td>${s[g.name]??'—'}</td></tr>`).join('')}</table></div>`;place(tip,n)}
+function hideTip(){tip.style.display='none'}
+tip.onpointerenter=()=>clearTimeout(tipT);tip.onpointerleave=()=>tipT=setTimeout(hideTip,250);
+function openEd(i,n){hideTip();const p=pages[0];
+ ed.innerHTML=`<button class="btn" id="x">×</button><button class="btn" id="dl">Delete</button><b>${esc(i.id)}@f${i.gen}</b> <small>log2FC scores</small><div class="sc"><table><tr><th>Gene</th><th>Score</th></tr>${p.genes.map((g,k)=>`<tr><td>${esc(g.name)}</td><td><input type="number" step="0.1" data-k="${k}" value="${i.s[g.name]??''}"></td></tr>`).join('')}</table></div>`;
+ place(ed,n);
+ ed.oninput=e=>{const k=e.target.dataset.k;if(k==null)return;const v=e.target.value;i.s[p.genes[k].name]=v===''?undefined:+v;radar();save()};
+ $('#x').onclick=()=>ed.style.display='none';
+ $('#dl').onclick=()=>{p.inds=p.inds.filter(x=>x.uid!=i.uid);p.couples=p.couples.filter(c=>c.a!=i.uid&&c.b!=i.uid);p.couples.forEach(c=>{if(c.kid==i.uid)c.kid=null});ed.style.display='none';renderBoard();radar();save()}}
+addEventListener('pointerdown',e=>{if(ed.style.display=='block'&&!e.target.closest('#ed,.n'))ed.style.display='none';if(ls&&!e.target.closest('.lk')){ls=null;document.querySelectorAll('.ls').forEach(x=>x.classList.remove('ls'))}});
+document.querySelectorAll('.sym').forEach(s=>s.ondragstart=e=>e.dataTransfer.setData('text',s.dataset.k));
+
+/* ---------- gene table (right, under the radar) ---------- */
+function renderTable(){const p=pages[0],T=$('#tw');
+ T.innerHTML=`<table><thead><tr><th>Gene</th><th>Resistance</th><th>Description</th><th>Incl.</th><th></th></tr></thead><tbody>${p.genes.map((g,k)=>`<tr data-r="${k}"><td><input type="text" data-f="name" value="${esc(g.name)}"></td><td><select data-f="type">${TN.map((n,t)=>`<option value="${t}"${g.type==t?' selected':''}>${n}</option>`).join('')}</select></td><td><input type="text" data-f="desc" value="${esc(g.desc)}"></td><td><input type="checkbox" data-f="inc"${g.inc?' checked':''}></td><td><button class="btn" data-f="del">×</button></td></tr>`).join('')}</tbody></table><div style="padding:6px"><button class="btn" id="ag">+ Add gene</button></div>`;
+ T.onchange=T.oninput=e=>{const f=e.target.dataset.f;if(!f||f=='del')return;if(e.type=='input'&&f=='name')return;const k=e.target.closest('tr').dataset.r,g=p.genes[k];
+  if(f=='name'){const o=g.name;g.name=e.target.value.trim()||o;if(o!=g.name)p.inds.forEach(i=>{if(i.s[o]!==undefined){i.s[g.name]=i.s[o];delete i.s[o]}})}
+  else if(f=='type')g.type=+e.target.value;else if(f=='inc')g.inc=e.target.checked;else g.desc=e.target.value;radar();save()};
+ T.onclick=e=>{if(e.target.dataset.f=='del'){p.genes.splice(e.target.closest('tr').dataset.r,1);renderTable();radar();save()}
+  if(e.target.id=='ag'){p.genes.push({name:'NEW_GENE_'+(p.genes.length+1),type:0,desc:'',inc:true});renderTable();radar();save();T.scrollTop=T.scrollHeight}}}
+
+/* ---------- radar ---------- */
+function radar(){const p=pages[0],g=p.genes.filter(x=>x.inc&&x.name),C=170,R=112,R0=14,D=Math.PI/180;
+ const cnt=[0,1,2,3].map(t=>g.filter(x=>x.type==t).length),tot=g.length;let sz=[90,90,90,90];
+ // quadrant sizes: start at 90° each; a crowded type borrows angle from roomier ones (min 14° per axis); if impossible, all axes share 360° equally
+ if(tot*14>360)sz=cnt.map(c=>360*c/tot);else{const nd=cnt.map(c=>c*14);let df=0,sl=0;sz.forEach((s,i)=>nd[i]>s?df+=nd[i]-s:sl+=s-nd[i]);sz=sz.map((s,i)=>nd[i]>s?nd[i]:s-(s-nd[i])*df/sl)}
+ let a=0;const S=sz.map(s=>{const r=a;a+=s;return r});
+ const pt=(d,r)=>[C+r*Math.sin(d*D),C-r*Math.cos(d*D)],ax=[];
+ for(let t=0;t<4;t++)g.filter(x=>x.type==t).forEach((x,k)=>ax.push({x,ang:S[t]+(k+.5)*sz[t]/cnt[t]}));
+ const num=v=>v!=null&&v!==''&&!isNaN(v),vs=[];p.inds.forEach(i=>g.forEach(x=>{if(num(i.s[x.name]))vs.push(+i.s[x.name])}));
+ let lo=Math.min(...vs),hi=Math.max(...vs);if(!vs.length||lo==hi){lo=(vs[0]??0)-1;hi=lo+2}
+ const rr=v=>R0+(v-lo)/(hi-lo)*(R-R0);let h=`<svg viewBox="0 0 340 340" role="img" aria-label="Radar chart of gene scores">`;
+ sz.forEach((s,t)=>{if(s<.5)return;const e=Math.min(s,359.9),[x0,y0]=pt(S[t],R),[x1,y1]=pt(S[t]+e,R);h+=`<path d="M${C} ${C}L${x0} ${y0}A${R} ${R} 0 ${e>180?1:0} 1 ${x1} ${y1}Z" fill="${TC[t]}" fill-opacity=".16" stroke="${TC[t]}" stroke-opacity=".5"/>`});
+ [0,.33,.66,1].forEach(f=>{const r=rr(lo+f*(hi-lo));h+=`<circle cx="${C}" cy="${C}" r="${r}" fill="none" stroke="#fff4" stroke-dasharray="2 3"/><text x="${C+3}" y="${C-r-2}" font-size="8" fill="#fffc">${(lo+f*(hi-lo)).toFixed(1)}</text>`});
+ ax.forEach(({x,ang})=>{const [px,py]=pt(ang,R),[lx,ly]=pt(ang,R+6),sn=Math.sin(ang*D);h+=`<line x1="${C}" y1="${C}" x2="${px}" y2="${py}" stroke="#fff5"/><text x="${lx}" y="${ly+3}" font-size="8" fill="#fff" text-anchor="${sn>.3?'start':sn<-.3?'end':'middle'}">${esc(x.name.slice(0,11))}</text>`});
+ const poly=(s,c,o,dash)=>{if(!ax.length)return '';const P=ax.map(({x,ang})=>pt(ang,rr(num(s[x.name])?+s[x.name]:lo)).join(',')).join(' ');return `<polygon points="${P}" fill="${c}" fill-opacity="${o/4}" stroke="${c}" stroke-width="${o>.6?2.4:1.2}" stroke-opacity="${o}"${dash?' stroke-dasharray="4 3"':''}/>`};
+ p.inds.forEach((i,k)=>{const on=hov&&hov.u==i.uid;h+=poly(i.s,IC[k%8],hov?(on?1:.2):.6)});
+ if(hov&&hov.gs)h+=poly(hov.gs,'#fff',1,1);
+ h+='</svg>';
+ $('#rad').innerHTML=`<div class="lg">${TN.map((n,t)=>`<span><i style="background:${TC[t]}"></i>${n} (${cnt[t]})</span>`).join('')}</div>${g.length?h:'<p style="padding:30px;text-align:center">Tick “Incl.” on some genes to draw the radar.</p>'}<div class="lg">${p.inds.map((i,k)=>`<span><i style="background:${IC[k%8]}"></i>${esc(i.id)}</span>`).join('')}<span style="opacity:.7">scale: log2FC ${lo.toFixed(1)} → ${hi.toFixed(1)}</span></div>`}
+
+function renderAll(){renderStack();renderFront();renderTable();radar()}
+renderAll();
+</script></body></html>
