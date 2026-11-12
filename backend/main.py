@@ -17,7 +17,9 @@ from crop_advisor import recommend_crops_endpoint
 logger = logging.getLogger(__name__)
 
 EE_PROJECT = os.getenv("EE_PROJECT")
-EE_CREDENTIALS_FILE = os.getenv("EE_SERVICE_ACCOUNT_FILE")
+EE_CREDENTIALS_FILE = os.getenv("EE_SERVICE_ACCOUNT_FILE") or str(
+    Path(__file__).with_name("service_account.json")
+)
 EE_CREDENTIALS_JSON = os.getenv("EE_SERVICE_ACCOUNT_JSON")
 
 
@@ -29,16 +31,24 @@ async def lifespan(app: FastAPI):
                 json.loads(EE_CREDENTIALS_JSON),
                 scopes=["https://www.googleapis.com/auth/earthengine"],
             )
-        elif EE_CREDENTIALS_FILE and Path(EE_CREDENTIALS_FILE).is_file():
+            project = EE_PROJECT or credentials.project_id
+        elif Path(EE_CREDENTIALS_FILE).is_file():
             credentials = service_account.Credentials.from_service_account_file(
                 EE_CREDENTIALS_FILE,
                 scopes=["https://www.googleapis.com/auth/earthengine"],
             )
+            project = EE_PROJECT or credentials.project_id
         else:
-            credentials, _ = google.auth.default(
+            credentials, project = google.auth.default(
                 scopes=["https://www.googleapis.com/auth/earthengine"]
             )
-        ee.Initialize(credentials=credentials, project=EE_PROJECT)
+            project = EE_PROJECT or project
+        if not project:
+            raise RuntimeError(
+                "Earth Engine project is unset; configure EE_PROJECT or provide "
+                "service-account credentials with a project ID."
+            )
+        ee.Initialize(credentials=credentials, project=project)
         app.state.ee_initialization_error = None
         logger.info("Google Earth Engine initialized")
     except Exception as error:
