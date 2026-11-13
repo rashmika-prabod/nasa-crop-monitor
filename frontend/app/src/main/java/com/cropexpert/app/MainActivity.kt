@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -93,7 +94,16 @@ class MainActivity : ComponentActivity() {
 
                                     NavigationBarItem(
                                         icon = { Icon(screen.icon, contentDescription = null) },
-                                        label = { Text(screen.label) },
+                                        label = {
+                                            Text(
+                                                text = screen.label,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = 10.sp
+                                                )
+                                            )
+                                        },
                                         selected = isSelected,
                                         onClick = {
                                             val route = if (screen is Screen.Home) {

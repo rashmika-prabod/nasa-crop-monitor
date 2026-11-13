@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.foundation.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -34,6 +36,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.cropexpert.app.ui.theme.AgriculturalGreen
 import com.cropexpert.app.ui.theme.MidnightBlue
 import com.cropexpert.app.ui.theme.White70
+import com.cropexpert.app.R
 import kotlinx.coroutines.delay
 
 /**
@@ -166,6 +169,15 @@ fun SplashScreen(onNavigateToMain: () -> Unit) {
         ),
         label = "LogoScale"
     )
+    val orbitAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 2f * Math.PI.toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(5000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "OrbitAngle"
+    )
 
     // Dynamic Dot Animation State
     val dotCount by infiniteTransition.animateValue(
@@ -180,18 +192,22 @@ fun SplashScreen(onNavigateToMain: () -> Unit) {
     )
     val dots = ".".repeat(dotCount)
 
-    // Make Splash Screen Immersive (Hide system UI)
-    LaunchedEffect(Unit) {
-        if (!view.isInEditMode) {
-            val window = (view.context as Activity).window
-            // Configure the window to allow content behind system bars
+    DisposableEffect(view) {
+        val activity = view.context as? Activity
+        val window = activity?.window
+        if (!view.isInEditMode && window != null) {
             WindowCompat.setDecorFitsSystemWindows(window, false)
-            
             val insetsController = WindowCompat.getInsetsController(window, view)
-            // Hide system bars (time, wifi, battery, navigation)
             insetsController.hide(WindowInsetsCompat.Type.systemBars())
-            // Allow bars to be shown transiently with a swipe
-            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            insetsController.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+        onDispose {
+            if (!view.isInEditMode && window != null) {
+                WindowCompat.setDecorFitsSystemWindows(window, true)
+                WindowCompat.getInsetsController(window, view)
+                    .show(WindowInsetsCompat.Type.systemBars())
+            }
         }
     }
 
@@ -254,16 +270,37 @@ fun SplashScreen(onNavigateToMain: () -> Unit) {
                         }
                 )
 
-                // The Shield Body
-                Box(
-                    modifier = Modifier
-                        .size(185.dp)
-                        .clip(ShieldShape)
-                        .background(Color(0xFF0D47A1)) // NASA style deep blue
-                        .border(3.dp, Color.White.copy(alpha = 0.9f), ShieldShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    LogoComponent(modifier = Modifier.fillMaxSize().padding(22.dp))
+                Image(
+                    painter = painterResource(R.drawable.splash_logo_transparent),
+                    contentDescription = "Crop Expert Earth and seedling logo",
+                    modifier = Modifier.size(220.dp)
+                )
+                Canvas(modifier = Modifier.size(220.dp)) {
+                    val angle = orbitAngle
+                    val orbitCenter = Offset(size.width * 0.5f, size.height * 0.5f)
+                    val orbitRadiusX = size.width * 0.48f
+                    val orbitRadiusY = size.height * 0.17f
+                    val tilt = Math.toRadians(-20.0).toFloat()
+                    val x = orbitRadiusX * kotlin.math.cos(angle)
+                    val y = orbitRadiusY * kotlin.math.sin(angle)
+                    val orbitX = orbitCenter.x + x * kotlin.math.cos(tilt) - y * kotlin.math.sin(tilt)
+                    val orbitY = orbitCenter.y + x * kotlin.math.sin(tilt) + y * kotlin.math.cos(tilt)
+                    val center = Offset(orbitX, orbitY)
+                    drawCircle(
+                        color = Color(0xFF0B2E24),
+                        radius = 6.dp.toPx(),
+                        center = center
+                    )
+                    drawCircle(
+                        color = Color(0xFFFFB74D),
+                        radius = 4.dp.toPx(),
+                        center = center
+                    )
+                    drawCircle(
+                        color = Color.White,
+                        radius = 1.5.dp.toPx(),
+                        center = center
+                    )
                 }
             }
 
