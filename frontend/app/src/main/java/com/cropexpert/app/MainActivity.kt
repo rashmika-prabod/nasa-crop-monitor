@@ -64,6 +64,7 @@ class MainActivity : ComponentActivity() {
             val navController = rememberNavController()
             var selectedLatitude by rememberSaveable { mutableStateOf(7.8731) }
             var selectedLongitude by rememberSaveable { mutableStateOf(80.7718) }
+            var selectedFieldBoundary by rememberSaveable { mutableStateOf<String?>(null) }
             var farmProfile by rememberSaveable(stateSaver = FarmProfileSaver) {
                 mutableStateOf(FarmProfile())
             }
@@ -148,9 +149,10 @@ class MainActivity : ComponentActivity() {
                             })
                         }
                         composable("location_selection") {
-                            LocationSelectionScreen(onConfirmLocation = { lat, lon ->
+                            LocationSelectionScreen(onConfirmLocation = { lat, lon, boundary ->
                                 selectedLatitude = lat
                                 selectedLongitude = lon
+                                selectedFieldBoundary = boundary
                                 navController.navigate(Screen.Home.createRoute(lat, lon)) {
                                     popUpTo("location_selection") { inclusive = true }
                                 }
@@ -178,6 +180,7 @@ class MainActivity : ComponentActivity() {
                         ) {
                             CropAdvisorScreen(
                                 soilPH = farmProfile.soilPHValue(),
+                                fieldBoundary = selectedFieldBoundary,
                                 onUseForRotation = { response ->
                                     advisorResponse = response
                                     navController.navigate(Screen.FuturePlan.route) {

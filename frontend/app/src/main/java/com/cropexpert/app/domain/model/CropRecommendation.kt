@@ -16,7 +16,9 @@ data class CropRecommendationResponse(
     val topFiveOverlap: Int?,
     val soilPHUsed: Double? = null,
     val soilPHSource: String? = null,
-    val recommendations: List<CropRecommendation> = emptyList()
+    val recommendations: List<CropRecommendation> = emptyList(),
+    val fieldAreaHa: Double? = null,
+    val samplingBasis: String? = null
 )
 
 data class CropRecommendation(

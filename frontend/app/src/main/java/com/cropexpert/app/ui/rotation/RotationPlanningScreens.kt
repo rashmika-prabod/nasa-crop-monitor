@@ -3,6 +3,7 @@ package com.cropexpert.app.ui.rotation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +28,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -50,19 +53,26 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.PopupProperties
 import com.cropexpert.app.domain.model.FarmProfile
 import com.cropexpert.app.domain.model.CropRecommendationResponse
 import com.cropexpert.app.domain.model.RotationPlan
 import com.cropexpert.app.domain.model.buildRotationPlans
 import com.cropexpert.app.domain.model.farmPriorities
+import com.cropexpert.app.domain.model.lastSeasonCropValue
 import com.cropexpert.app.domain.model.soilPHValue
 import com.cropexpert.app.ui.theme.ForestGreen
 import com.cropexpert.app.ui.theme.LightMint
 import com.cropexpert.app.ui.theme.Typography
+import java.text.NumberFormat
 
 val FarmProfileSaver = Saver<FarmProfile, List<String>>(
     save = { profile ->
         listOf(
+            profile.lastSeasonCrop,
+            profile.harvestLevel,
+            profile.residueManagement,
+            profile.nutrientInputs,
             profile.recentCrops,
             profile.rotationYears,
             profile.waterAvailability,
@@ -75,22 +85,39 @@ val FarmProfileSaver = Saver<FarmProfile, List<String>>(
         )
     },
     restore = { values ->
-        if (values.size != 9) {
+        if (values.size != 9 && values.size != 13) {
             null
         } else {
+            val offset = if (values.size == 13) 4 else 0
             FarmProfile(
-                recentCrops = values[0],
-                rotationYears = values[1],
-                waterAvailability = values[2],
-                soilPH = values[3],
-                soilTestResults = values[4],
-                soilTestDate = values[5],
-                soilTestSource = values[6],
-                constraints = values[7],
-                priorities = values[8].split("|").filter(String::isNotBlank)
+                lastSeasonCrop = if (offset == 4) values[0] else "",
+                harvestLevel = if (offset == 4) values[1] else "",
+                residueManagement = if (offset == 4) values[2] else "",
+                nutrientInputs = if (offset == 4) values[3] else "",
+                recentCrops = values[offset],
+                rotationYears = values[offset + 1],
+                waterAvailability = values[offset + 2],
+                soilPH = values[offset + 3],
+                soilTestResults = values[offset + 4],
+                soilTestDate = values[offset + 5],
+                soilTestSource = values[offset + 6],
+                constraints = values[offset + 7],
+                priorities = values[offset + 8].split("|").filter(String::isNotBlank)
             )
         }
     }
+)
+
+private val supportedRotationCrops = listOf(
+    "Ash Plantain", "Beetroot", "Big Onion", "Bitter Gourd", "Black Gram",
+    "Brinjal", "Cabbage", "Carrot", "Cassava (Manioc)", "Cowpea",
+    "Cucumber", "Foxtail Millet", "Green Gram (Mung Bean)",
+    "Green & Dried Chilies", "Gotukola", "Groundnut (Peanut)", "Innala",
+    "Kangkung", "Kiri Ala", "Kodo Millet", "Knol Khol", "Leeks",
+    "Long Beans (Yard-long bean)", "Maize", "Mukunuwenna", "Okra",
+    "Potato", "Pumpkin", "Radish", "Raja Ala", "Red Onion", "Ridge Gourd",
+    "Snake Gourd", "Sorghum", "Soybean", "Sweet Potato", "Tomato",
+    "Winged Beans", "Bell Pepper (Capsicum)", "Finger Millet (Kurakkan)"
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -113,35 +140,62 @@ fun FarmProfileScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         ScreenHeader(
-            eyebrow = "OPTIONAL SETUP",
-            title = "Your farm, your priorities",
-            subtitle = "Add what you know. Skip anything you don't."
+            eyebrow = "ROTATION START",
+            title = "What did you grow last season?",
+            subtitle = "Start with one crop. The extra details are optional."
         )
         CompactInfoBanner(
-            text = "A soil-test pH can refine Crop Advisor's pH fit. Other nutrients are recorded but are not scored yet."
+            text = "Crop Advisor will find climate-ranked crops to follow it. Soil benefits are not assessed until crop-trait data are added."
         )
 
         ExpandableProfileSection(
-            title = "Crop history",
-            summary = currentProfile.recentCrops.ifBlank { "Optional · helps set your baseline" },
+            title = "Last season's crop",
+            summary = currentProfile.lastSeasonCrop.ifBlank {
+                currentProfile.recentCrops
+                    .split("→", ",", "->")
+                    .map(String::trim)
+                    .filter(String::isNotBlank)
+                    .lastOrNull()
+                    ?: "Choose a crop · other details optional"
+            },
             expanded = cropHistoryExpanded,
             onClick = { cropHistoryExpanded = !cropHistoryExpanded },
             icon = Icons.Default.Landscape
         )
         if (cropHistoryExpanded) {
-            ProfileTextField(
-                label = "Recent crops, oldest to newest",
-                value = currentProfile.recentCrops,
-                onValueChange = { currentProfile = currentProfile.copy(recentCrops = it) },
-                placeholder = "e.g. rice, mung bean, rice",
-                minLines = 2
+            CropSelector(
+                selectedCrop = currentProfile.lastSeasonCrop,
+                onCropSelected = { currentProfile = currentProfile.copy(lastSeasonCrop = it) }
+            )
+            Text(
+                "Optional details help describe what happened in the field; skip any you don't know.",
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
+            ChoiceChips(
+                title = "Harvest amount",
+                options = listOf("Not sure", "Low", "Average", "High"),
+                selected = currentProfile.harvestLevel,
+                onSelected = { currentProfile = currentProfile.copy(harvestLevel = it) }
+            )
+            ChoiceChips(
+                title = "What happened to crop residues?",
+                options = listOf("Not sure", "Mostly left", "Partly removed", "Removed"),
+                selected = currentProfile.residueManagement,
+                onSelected = { currentProfile = currentProfile.copy(residueManagement = it) }
+            )
+            ChoiceChips(
+                title = "Fertilizer or organic inputs used?",
+                options = listOf("Not sure", "Fertilizer", "Manure / compost", "Both", "None"),
+                selected = currentProfile.nutrientInputs,
+                onSelected = { currentProfile = currentProfile.copy(nutrientInputs = it) }
             )
             ProfileTextField(
-                label = "Years of history (optional)",
-                value = currentProfile.rotationYears,
-                onValueChange = { currentProfile = currentProfile.copy(rotationYears = it) },
-                placeholder = "Number of years",
-                keyboardType = KeyboardType.Number
+                label = "Earlier crops (optional)",
+                value = currentProfile.recentCrops,
+                onValueChange = { currentProfile = currentProfile.copy(recentCrops = it) },
+                placeholder = "e.g. rice, green gram",
+                minLines = 1
             )
         }
 
@@ -249,9 +303,14 @@ fun FarmProfileScreen(
             enabled = !invalidSoilPH,
             colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)
         ) {
-            Text("Get crop candidates", color = Color.White)
+            Text("Find crops to follow", color = Color.White)
         }
-        Text("You can update this information later.", modifier = Modifier.align(Alignment.CenterHorizontally), color = Color.Gray, fontSize = 12.sp)
+        Text(
+            "You can change this information later. Soil tests are not required.",
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+            color = Color.Gray,
+            fontSize = 12.sp
+        )
         Spacer(Modifier.height(8.dp))
     }
 }
@@ -278,52 +337,47 @@ fun RotationPlansScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         ScreenHeader(
-            eyebrow = "FIELD SHIFT · UMA OYA PILOT",
-            title = "Rotation ideas",
-            subtitle = if (advisorResponse == null) {
-                "Get crop candidates to compare options for your field"
-            } else {
-                "Built from your Crop Advisor climate shortlist"
-            }
+            eyebrow = "FROM LAST SEASON TO THE NEXT",
+            title = "Plan what follows",
+            subtitle = profile.lastSeasonCropValue().takeIf(String::isNotBlank)?.let {
+                "Starting with ${it}, explore a candidate crop and a possible return."
+            } ?: "Choose last season's crop in Farm Profile to build A → B → A ideas."
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatusPill("${plans.size} options", Color(0xFFE2F2E6), ForestGreen)
-            StatusPill(
-                if (climateCandidateCount == null) {
-                    "No crop results yet"
-                } else {
-                    "$climateCandidateCount candidates"
-                },
-                Color(0xFFFFF0D5),
-                Color(0xFF805900)
-            )
+        if (profile.lastSeasonCropValue().isBlank()) {
+            CompactInfoBanner("Add the crop you grew last season in Farm Profile. The app can still show Crop Advisor candidates, but it won't invent the previous crop.")
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatusPill("Last season: ${profile.lastSeasonCropValue()}", Color(0xFFE2F2E6), ForestGreen)
+                climateCandidateCount?.let {
+                    StatusPill("$it climate candidates", Color(0xFFFFF0D5), Color(0xFF805900))
+                }
+            }
         }
 
         StrategyCard(
-            number = "1",
+            number = "BASELINE",
             plan = plans[0],
             onDetails = { onOpenPlan(plans[0].id) }
         )
         StrategyCard(
-            number = "2",
+            number = "NEXT SEASON",
             plan = plans[1],
             onDetails = { onOpenPlan(plans[1].id) }
         )
         StrategyCard(
-            number = "3",
+            number = "FOLLOWING SEASON",
             plan = plans[2],
             onDetails = { onOpenPlan(plans[2].id) }
         )
 
         if (advisorResponse == null) {
-            CompactInfoBanner("Get Crop Advisor results to populate the two candidate options. No crops are invented when results are missing.")
+            CompactInfoBanner("Run Crop Advisor to fill in candidate B using its climate-ranked results. No replacement crops are invented here.")
         } else {
-            val source = when {
-                advisorResponse.soilPHSource.isNullOrBlank() -> "Soil pH source not reported"
-                advisorResponse.soilPHUsed != null -> "${advisorResponse.soilPHSource}: pH ${"%.1f".format(advisorResponse.soilPHUsed)}"
-                else -> advisorResponse.soilPHSource
-            }
-            StatusPill(source, LightMint, ForestGreen)
+            Text(
+                "Candidate B is screened for the next forecast planting window. The return to A is illustrative and has not been forecast for that later season.",
+                color = Color.DarkGray,
+                fontSize = 12.sp
+            )
         }
         Card(
             colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -340,7 +394,7 @@ fun RotationPlansScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         profile.priorities.take(2).forEach { StatusPill(it, LightMint, ForestGreen) }
                     }
-                    Text("Used as farmer context; Crop Advisor does not yet score these priorities.", color = Color.Gray, fontSize = 12.sp)
+                    Text("Saved as context; candidate ranking does not yet score these priorities.", color = Color.Gray, fontSize = 12.sp)
                 }
             }
         }
@@ -354,7 +408,8 @@ fun RotationPlansScreen(
         ) {
             Text("Refresh crop candidates", color = Color.White)
         }
-        CompactInfoBanner("Candidates come from the individual-crop climate ranking. Their order is not a validated rotation; planting overlap, crop-family breaks, and local practice still need checking.")
+        CompactInfoBanner("Soil recovery and nutrient effects are not assessed yet. Crop-trait data are not connected, and exact nutrient changes cannot be inferred from crop name alone.")
+        CompactInfoBanner("These are exploratory sequences, not validated rotations. Calendar fit, crop-family breaks, pest cycles, residue handling, and local practice still need review.")
         CompactInfoBanner("Prototype scope: Uma Oya, Sri Lanka. Crop dataset and economics may not represent other regions.")
     }
 }
@@ -371,18 +426,28 @@ fun RotationPlanDetailScreen(
         .firstOrNull { it.id == planId }
         ?: buildRotationPlans(profile, emptyList()).first()
     val baselineDetails = listOf(
-        "Baseline" to (plan.farmerReportedSequence ?: "No crop history entered; no current sequence is assumed."),
-        "Evidence" to "This baseline records farmer input only and is not scored by Crop Advisor.",
-        "Next step" to "Add or update crop history in Farm Profile."
+        "Previous crop" to profile.lastSeasonCropValue().ifBlank { "Not provided" },
+        "Baseline sequence" to if (plan.sequence.isEmpty()) {
+            "Choose last season's crop to compare a repeat-crop baseline."
+        } else {
+            plan.sequence.joinToString(" → ")
+        },
+        "What this means" to "A repeat is included only as a farmer-context baseline. It is not presented as a soil-recovery strategy."
     )
     val alternativeDetails = listOf(
         "How candidates were chosen" to plan.summary,
-        "Important limitation" to "These are crop candidates, not a validated multi-season rotation. Crop-family breaks, pest-cycle effects, and crop-to-crop calendar compatibility have not been checked."
+        "Sequence" to if (plan.sequence.isEmpty()) {
+            "Select last season's crop and get Crop Advisor results to complete this sequence."
+        } else {
+            plan.sequence.joinToString(" → ")
+        },
+        "Nutrient effects" to "Not assessed yet. Crop nutrient and residue-trait data are not connected; no nitrogen restoration is claimed.",
+        "Important limitation" to "Crop Advisor screens candidate B for the next forecast window only. Crop A's return-season fit, crop-family breaks, pest cycles, and calendar compatibility are not validated."
     )
     val details = if (plan.isBaseline) baselineDetails else alternativeDetails
     val title = plan.title
     val candidates = plan.crops
-    val statusText = if (plan.isBaseline) "Farmer baseline" else "Crop Advisor climate shortlist"
+    val statusText = if (plan.isBaseline) "Comparison baseline" else "Crop Advisor candidate"
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -407,15 +472,15 @@ fun RotationPlanDetailScreen(
             CompactInfoBanner(plan.summary)
         }
         DetailSection(
-            "Your field data",
-            if (profile.soilPH.isBlank() && profile.soilTestResults.isBlank()) {
-                "No soil test entered. Satellite observations cannot replace a local nutrient test."
-            } else {
-                "Farmer-provided${profile.soilPH.takeIf(String::isNotBlank)?.let { " pH $it" }.orEmpty()}" +
-                    profile.soilTestResults.takeIf(String::isNotBlank)?.let { ": $it" }.orEmpty() +
-                    listOf(profile.soilTestDate, profile.soilTestSource)
-                        .filter(String::isNotBlank)
-                        .joinToString(prefix = " · ")
+            "Farmer context",
+            buildString {
+                append("Last season: ${profile.lastSeasonCropValue().ifBlank { "not provided" }}.")
+                profile.harvestLevel.takeIf(String::isNotBlank)?.let { append(" Harvest: $it.") }
+                profile.residueManagement.takeIf(String::isNotBlank)?.let { append(" Residues: $it.") }
+                profile.nutrientInputs.takeIf(String::isNotBlank)?.let { append(" Inputs: $it.") }
+                if (profile.soilPH.isNotBlank() || profile.soilTestResults.isNotBlank()) {
+                    append(" Optional soil information provided.")
+                }
             }
         )
         if (advisorResponse != null) {
@@ -428,7 +493,7 @@ fun RotationPlanDetailScreen(
                 }
             )
         }
-        CompactInfoBanner("Satellite data describe an area and time period, not every condition in an individual field.")
+        CompactInfoBanner("Harvest, input, and residue details are optional context only; they do not yet change the candidate score.")
         OutlinedButton(onClick = onEditProfile, modifier = Modifier.fillMaxWidth()) {
             Text("Edit farm profile", color = ForestGreen)
         }
@@ -461,7 +526,7 @@ private fun StrategyCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("OPTION $number", color = ForestGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(number, color = ForestGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 StatusPill(
                     text = if (plan.isBaseline) "Baseline" else "Crop Advisor",
                     background = if (plan.isBaseline) LightMint else Color(0xFFE2F2E6),
@@ -470,12 +535,27 @@ private fun StrategyCard(
             }
             Text(plan.title, color = ForestGreen, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text(plan.summary, color = Color.Gray, fontSize = 12.sp)
-            if (plan.isBaseline) {
-                CropSequence(plan.farmerReportedSequence.orEmpty(), plan.farmerReportedSequence.isNullOrBlank())
-            } else if (plan.crops.isEmpty()) {
-                StatusPill("No distinct candidate available", Color(0xFFFFF0D5), Color(0xFF805900))
+            if (plan.sequence.isNotEmpty()) {
+                CropSequence(plan.sequence.joinToString(" → "), false)
+            } else if (plan.isBaseline) {
+                StatusPill("Choose last season's crop", Color(0xFFF2F3F4), Color.DarkGray)
+            } else if (plan.crops.isEmpty() || plan.sequence.isEmpty()) {
+                StatusPill("Needs last crop and advisor result", Color(0xFFFFF0D5), Color(0xFF805900))
             } else {
-                CropSequence(plan.crops.joinToString(" → ") { it.cropName }, false)
+                CropSequence(plan.sequence.joinToString(" → "), false)
+            }
+            plan.crops.firstOrNull()?.let { candidate ->
+                Text(
+                    text = buildString {
+                        append("Climate fit ${candidate.suitabilityScore}%")
+                        candidate.expectedProfit?.let {
+                            append(" · Historical est. Rs ${NumberFormat.getNumberInstance().format(it)} /ha")
+                        }
+                    },
+                    color = ForestGreen,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Explore details", color = ForestGreen, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -489,8 +569,14 @@ private fun StrategyCard(
 private fun CandidateDetail(candidate: com.cropexpert.app.domain.model.CropRecommendation) {
     DetailSection(
         candidate.cropName,
-        "Climate fit ${candidate.suitabilityScore}% · ${candidate.plantIn} to ${candidate.harvestBy} · ${candidate.durationDays} days\n" +
-            "Water: ${candidate.waterRequirement}\n${candidate.suitabilityReason}"
+        buildString {
+            append("Climate fit ${candidate.suitabilityScore}% · ${candidate.plantIn} to ${candidate.harvestBy} · ${candidate.durationDays} days.")
+            candidate.expectedProfit?.let {
+                append("\nHistorical risk-adjusted estimate: Rs ${NumberFormat.getNumberInstance().format(it)} /ha.")
+            }
+            append("\nProfit evidence: ${candidate.profitConfidence} confidence · ${candidate.profitBasis}.")
+            append("\nWater: ${candidate.waterRequirement}. ${candidate.suitabilityReason}")
+        }
     )
 }
 
@@ -652,7 +738,83 @@ private fun ProfileTextField(
     )
 }
 
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun CropSelector(
+    selectedCrop: String,
+    onCropSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val customCrop = selectedCrop.takeIf { it.isNotBlank() && it !in supportedRotationCrops }.orEmpty()
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box {
+            OutlinedButton(
+                onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = selectedCrop.ifBlank { "Choose last season's crop" },
+                    modifier = Modifier.weight(1f),
+                    color = ForestGreen,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Icon(Icons.Default.ExpandMore, contentDescription = "Show crop choices", tint = ForestGreen)
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                properties = PopupProperties(focusable = true)
+            ) {
+                supportedRotationCrops.forEach { crop ->
+                    DropdownMenuItem(
+                        text = { Text(crop) },
+                        onClick = {
+                            onCropSelected(crop)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+        ProfileTextField(
+            label = "Or enter another crop",
+            value = customCrop,
+            onValueChange = onCropSelected,
+            placeholder = "Crop name"
+        )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun ChoiceChips(
+    title: String,
+    options: List<String>,
+    selected: String,
+    onSelected: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(title, color = ForestGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        options.chunked(2).forEach { rowOptions ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                rowOptions.forEach { option ->
+                    FilterChip(
+                        selected = selected == option,
+                        onClick = { onSelected(if (selected == option) "" else option) },
+                        label = { Text(option, maxLines = 1) }
+                    )
+                }
+            }
+        }
+    }
+}
+
 private fun FarmProfile.normalized(): FarmProfile = copy(
+    lastSeasonCrop = lastSeasonCrop.trim(),
+    harvestLevel = harvestLevel.trim(),
+    residueManagement = residueManagement.trim(),
+    nutrientInputs = nutrientInputs.trim(),
     recentCrops = recentCrops.trim(),
     rotationYears = rotationYears.trim(),
     waterAvailability = waterAvailability.trim(),
@@ -668,7 +830,7 @@ private fun FarmProfile.normalized(): FarmProfile = copy(
 private fun FarmProfileScreenPreview() {
     MaterialTheme(typography = Typography) {
         FarmProfileScreen(
-            profile = FarmProfile(),
+            profile = FarmProfile(lastSeasonCrop = "Rice"),
             onSave = {},
             onOpenCropAdvisor = {}
         )
@@ -681,7 +843,9 @@ private fun RotationPlansScreenPreview() {
     MaterialTheme(typography = Typography) {
         RotationPlansScreen(
             profile = FarmProfile(
-                recentCrops = "Rice → mung bean → rice",
+                lastSeasonCrop = "Rice",
+                harvestLevel = "Average",
+                residueManagement = "Mostly left",
                 priorities = listOf("Conserve water", "Soil health")
             ),
             advisorResponse = null,
@@ -697,9 +861,9 @@ private fun RotationPlansScreenPreview() {
 private fun RotationPlanDetailScreenPreview() {
     MaterialTheme(typography = Typography) {
         RotationPlanDetailScreen(
-            planId = "legume",
+            planId = "short_term",
             profile = FarmProfile(
-                recentCrops = "Rice → mung bean → rice",
+                lastSeasonCrop = "Rice",
                 soilTestResults = "pH 5.8; phosphorus 12 mg/kg",
                 soilPH = "5.8",
                 soilTestDate = "2026-03",

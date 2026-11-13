@@ -91,6 +91,7 @@ import kotlin.math.abs
 @Composable
 fun CropAdvisorScreen(
     soilPH: Double? = null,
+    fieldBoundary: String? = null,
     onUseForRotation: (CropRecommendationResponse) -> Unit = {},
     viewModel: CropAdvisorViewModel = viewModel(factory = CropAdvisorViewModel.Factory)
 ) {
@@ -106,9 +107,9 @@ fun CropAdvisorScreen(
         mutableStateOf(preferences.getString("api_key", "").orEmpty())
     }
 
-    LaunchedEffect(backendUrl, apiKey, soilPH) {
+    LaunchedEffect(backendUrl, apiKey, soilPH, fieldBoundary) {
         if (backendUrl.isNotBlank() && apiKey.isNotBlank()) {
-            viewModel.loadRecommendations(backendUrl, apiKey, soilPH)
+            viewModel.loadRecommendations(backendUrl, apiKey, soilPH, fieldBoundary)
         }
     }
     val recommendationsListState = rememberLazyListState()
@@ -144,7 +145,7 @@ fun CropAdvisorScreen(
                             .putString("base_url", backendUrl.trim())
                             .putString("api_key", apiKey.trim())
                             .apply()
-                        viewModel.loadRecommendations(backendUrl, apiKey, soilPH)
+                        viewModel.loadRecommendations(backendUrl, apiKey, soilPH, fieldBoundary)
                     }
                 )
             }
@@ -187,7 +188,9 @@ fun CropAdvisorScreen(
                 item {
                     ErrorPanel(
                         message = state.errorMessage.orEmpty(),
-                        onRetry = { viewModel.loadRecommendations(backendUrl, apiKey, soilPH) }
+                        onRetry = {
+                            viewModel.loadRecommendations(backendUrl, apiKey, soilPH, fieldBoundary)
+                        }
                     )
                 }
             } else if (state.visibleRecommendations.isEmpty()) {
@@ -378,6 +381,14 @@ private fun ContextHeader(response: CropRecommendationResponse) {
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Black
                 )
+                response.fieldAreaHa?.let { area ->
+                    Text(
+                        text = "FIELD-AREA SAMPLE  ${area.format(2)} ha · ${response.samplingBasis.orEmpty()}",
+                        color = Color.White.copy(alpha = 0.82f),
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     MaeMetric(
                         label = "RAIN MAE",

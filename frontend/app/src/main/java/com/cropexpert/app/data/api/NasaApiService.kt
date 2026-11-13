@@ -25,6 +25,7 @@ interface NasaApiService {
         @Query("lat") lat: Double,
         @Query("lon") lon: Double,
         @Query("soil_ph") soilPH: Double?,
+        @Query("field_boundary") fieldBoundary: String?,
         @Header("X-API-Key") apiKey: String
     ): CropRecommendationResponse
 }

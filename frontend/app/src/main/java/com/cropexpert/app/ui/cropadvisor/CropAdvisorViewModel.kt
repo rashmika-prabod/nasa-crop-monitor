@@ -50,7 +50,12 @@ class CropAdvisorViewModel(
     val uiState: StateFlow<CropAdvisorUiState> = _uiState.asStateFlow()
     private var requestJob: Job? = null
 
-    fun loadRecommendations(baseUrl: String, apiKey: String, soilPH: Double? = null) {
+    fun loadRecommendations(
+        baseUrl: String,
+        apiKey: String,
+        soilPH: Double? = null,
+        fieldBoundary: String? = null
+    ) {
         val normalizedUrl = baseUrl.trim().trimEnd('/') + "/"
         if (!normalizedUrl.startsWith("https://", ignoreCase = true) || apiKey.isBlank()) {
             _uiState.value = _uiState.value.copy(
@@ -74,6 +79,7 @@ class CropAdvisorViewModel(
                     latitude,
                     longitude,
                     soilPH,
+                    fieldBoundary,
                     normalizedUrl,
                     apiKey.trim()
                 )

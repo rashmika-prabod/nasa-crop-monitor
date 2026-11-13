@@ -1,5 +1,6 @@
 """Crop Advisor analysis migrated from the Colab notebook for persistent API hosting."""
 import hmac
+import hashlib
 import json
 import math
 import os
@@ -35,6 +36,8 @@ TEST_MONTHS, VAL_MONTHS = 24, 24      # most recent 24 months = test; the 24 bef
 FUTURE_MONTHS   = 24         # how far ahead to forecast (beyond the next planting month)
 LAPSE_C_PER_KM  = 6.0        # temperature drop per km of elevation (pin vs ~11 km weather cell)
 MIN_SUITABILITY = 0.40       # crops scoring below this are not recommended
+MAX_FIELD_VERTICES = 50
+MAX_FIELD_AREA_SQM = 50_000_000  # 5,000 ha; rejects accidental map-scale polygons
 
 # Used ONLY where crop_requirements_clean.csv has blanks. All are assumptions to replace with sourced values.
 ASSUMED_TEMP_MARGIN_C  = 6.0          # survivable range = ideal range +/- this
@@ -90,7 +93,7 @@ CROPS, NET_DF, REV_DF, PROFIT_DF = load_tables()
 
 
 # ====================================================== Earth Engine data fetch
-def _monthly_series(collection_id, bands, reducer, pt, scale):
+def _monthly_series(collection_id, bands, reducer, geometry, scale, spatial_mean=False):
     """Monthly sum/mean in bounded Earth Engine batches to limit memory use."""
     ic = ee.ImageCollection(collection_id).select(bands)
     latest = pd.Timestamp(
@@ -108,7 +111,8 @@ def _monthly_series(collection_id, bands, reducer, pt, scale):
         def per_month(i):
             s = start.advance(ee.Number(i), "month")
             img = getattr(ic.filterDate(s, s.advance(1, "month")), reducer)()
-            vals = img.reduceRegion(ee.Reducer.first(), pt, scale)
+            spatial_reducer = ee.Reducer.mean() if spatial_mean else ee.Reducer.first()
+            vals = img.reduceRegion(spatial_reducer, geometry, scale, maxPixels=1e9)
             return ee.Feature(None, vals).set("t", s.millis())
 
         features = ee.FeatureCollection(
@@ -121,13 +125,17 @@ def _monthly_series(collection_id, bands, reducer, pt, scale):
     return df.iloc[:-1]          # drop the newest month: it can be incomplete
 
 
-def fetch_static(lat, lon):
-    """Elevation, soil pH and district for the pin. Anything that fails is returned as None."""
+def fetch_static(lat, lon, field_geometry=None):
+    """Fetch elevation, soil pH and district at a pin or across a drawn field."""
     pt = ee.Geometry.Point([lon, lat])
+    region = field_geometry if field_geometry is not None else pt
+    spatial_reducer = ee.Reducer.mean() if field_geometry is not None else ee.Reducer.first()
     out = {"lat": lat, "lon": lon, "elev_m": None, "cell_elev_m": None, "soil_ph": None, "district": None}
     try:
         srtm = ee.Image("USGS/SRTMGL1_003")
-        out["elev_m"] = srtm.reduceRegion(ee.Reducer.first(), pt, 30).get("elevation").getInfo()
+        out["elev_m"] = srtm.reduceRegion(
+            spatial_reducer, region, 30, maxPixels=1e9
+        ).get("elevation").getInfo()
         box = pt.buffer(5500).bounds()    # roughly one ERA5-Land cell
         out["cell_elev_m"] = srtm.reduceRegion(ee.Reducer.mean(), box, 250, maxPixels=1e9).get("elevation").getInfo()
     except Exception as e:
@@ -135,10 +143,11 @@ def fetch_static(lat, lon):
     try:
         bands = ["phh2o_0-5cm_mean", "phh2o_5-15cm_mean", "phh2o_15-30cm_mean"]
         vals = ee.Image("projects/soilgrids-isric/phh2o_mean").select(bands) \
-                 .reduceRegion(ee.Reducer.first(), pt, 250).getInfo()
+                 .reduceRegion(spatial_reducer, region, 250, maxPixels=1e9).getInfo()
         vals = [v for v in vals.values() if v is not None]
-        ph = float(np.mean(vals))
-        out["soil_ph"] = ph / 10 if ph > 14 else ph      # SoilGrids stores pH x 10
+        if vals:
+            ph = float(np.mean(vals))
+            out["soil_ph"] = ph / 10 if ph > 14 else ph  # SoilGrids stores pH x 10
     except Exception as e:
         print("  soil pH failed:", e)
     try:
@@ -149,17 +158,40 @@ def fetch_static(lat, lon):
     return out
 
 
-def fetch_history(lat, lon):
-    """Monthly weather history: rain (CHIRPS), temperature + evaporation (ERA5-Land), actual ET (WaPOR)."""
+def fetch_history(lat, lon, field_geometry=None):
+    """Monthly weather history at the pin or averaged over a drawn field."""
     pt = ee.Geometry.Point([lon, lat])
-    rain = _monthly_series("UCSB-CHG/CHIRPS/DAILY", ["precipitation"], "sum", pt, 5566)
+    region = field_geometry if field_geometry is not None else pt
+    spatial_mean = field_geometry is not None
+    rain = _monthly_series(
+        "UCSB-CHG/CHIRPS/DAILY",
+        ["precipitation"],
+        "sum",
+        region,
+        5566,
+        spatial_mean,
+    )
     rain.columns = ["rain_mm"]
 
     era = "ECMWF/ERA5_LAND/DAILY_AGGR"
-    tmp = _monthly_series(era, ["temperature_2m", "temperature_2m_min", "temperature_2m_max"], "mean", pt, 11132)
+    tmp = _monthly_series(
+        era,
+        ["temperature_2m", "temperature_2m_min", "temperature_2m_max"],
+        "mean",
+        region,
+        11132,
+        spatial_mean,
+    )
     tmp = tmp - 273.15
     tmp.columns = ["temp_mean_c", "temp_min_c", "temp_max_c"]
-    pet = _monthly_series(era, ["potential_evaporation_sum"], "sum", pt, 11132).abs() * 1000   # m (negative) -> mm
+    pet = _monthly_series(
+        era,
+        ["potential_evaporation_sum"],
+        "sum",
+        region,
+        11132,
+        spatial_mean,
+    ).abs() * 1000   # m (negative) -> mm
     pet.columns = ["pet_mm"]
 
     df = rain.join(tmp, how="outer").join(pet, how="outer")
@@ -167,21 +199,25 @@ def fetch_history(lat, lon):
     # WaPOR actual ET: 10-day values, scaled by 0.1 -> mm/day, averaged to months (2018 onwards only)
     try:
         ic = ee.ImageCollection("projects/UNFAO/wapor/v3/L1-AETI-D").filterDate("2018-01-01", "2030-01-01")
-        rows = ic.getRegion(pt, 300).getInfo()
+        rows = ic.getRegion(region, 300).getInfo()
         w = pd.DataFrame(rows[1:], columns=rows[0])
         w["date"] = pd.to_datetime(w["time"], unit="ms")
         w["et"] = w["L1-AETI-D"] * 0.1
-        et = w.dropna(subset=["et"]).set_index("date")["et"].resample("MS").mean()
+        spatial_et = w.dropna(subset=["et"]).groupby("date")["et"].mean()
+        et = spatial_et.resample("MS").mean()
         df["et_mm_day"] = et.iloc[:-1]
     except Exception as e:
         print("  WaPOR ET failed (continuing without it):", e)
     return df
 
 
-def get_location_data(lat, lon, refresh=False):
+def get_location_data(lat, lon, refresh=False, field_geometry=None, field_key=None):
     """Fetch once, cache in Drive. Use refresh=True roughly once a month."""
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    key = f"{lat:.3f}_{lon:.3f}"
+    if field_key:
+        key = f"{lat:.6f}_{lon:.6f}_field_{field_key}"
+    else:
+        key = f"{lat:.3f}_{lon:.3f}"
     fw, fs = CACHE_DIR / f"{key}_weather.csv", CACHE_DIR / f"{key}_static.json"
     if fw.exists() and fs.exists() and not refresh:
         weather = pd.read_csv(fw, index_col=0, parse_dates=True)
@@ -190,8 +226,8 @@ def get_location_data(lat, lon, refresh=False):
         return weather, static
 
     print("fetching from Earth Engine (the first run takes a few minutes)...")
-    static = fetch_static(lat, lon)
-    weather = fetch_history(lat, lon)
+    static = fetch_static(lat, lon, field_geometry)
+    weather = fetch_history(lat, lon, field_geometry)
 
     # ERA5-Land temperatures describe an ~11 km cell, not the pin. Correct for the elevation difference.
     adj = 0.0
@@ -637,8 +673,141 @@ def _crop_category(group):
     return "Other"
 
 
-def advisor_api_result(lat, lon, soil_ph=None):
-    weather, location_static = get_location_data(lat, lon, refresh=False)
+def _orientation(a, b, c):
+    return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+
+def _segments_intersect(a, b, c, d):
+    epsilon = 1e-12
+
+    def on_segment(start, end, point):
+        return (
+            min(start[0], end[0]) - epsilon <= point[0] <= max(start[0], end[0]) + epsilon
+            and min(start[1], end[1]) - epsilon <= point[1] <= max(start[1], end[1]) + epsilon
+        )
+
+    o1, o2 = _orientation(a, b, c), _orientation(a, b, d)
+    o3, o4 = _orientation(c, d, a), _orientation(c, d, b)
+    if ((o1 > epsilon and o2 < -epsilon) or (o1 < -epsilon and o2 > epsilon)) and (
+        (o3 > epsilon and o4 < -epsilon) or (o3 < -epsilon and o4 > epsilon)
+    ):
+        return True
+    return (
+        (abs(o1) <= epsilon and on_segment(a, b, c))
+        or (abs(o2) <= epsilon and on_segment(a, b, d))
+        or (abs(o3) <= epsilon and on_segment(c, d, a))
+        or (abs(o4) <= epsilon and on_segment(c, d, b))
+    )
+
+
+def _is_simple_ring(ring):
+    edges = list(zip(ring[:-1], ring[1:]))
+    for first_index, (a, b) in enumerate(edges):
+        for second_index in range(first_index + 1, len(edges)):
+            if second_index == first_index + 1 or (
+                first_index == 0 and second_index == len(edges) - 1
+            ):
+                continue
+            c, d = edges[second_index]
+            if _segments_intersect(a, b, c, d):
+                return False
+    return True
+
+
+def _validated_field_boundary(field_boundary):
+    """Return a checked Earth Engine polygon, area in hectares, and cache key."""
+    if field_boundary is None:
+        return None, None, None
+    try:
+        coordinates = json.loads(field_boundary)
+    except (TypeError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=422, detail="Field boundary must be valid JSON.") from error
+    if not isinstance(coordinates, list) or len(coordinates) != 1:
+        raise HTTPException(
+            status_code=422,
+            detail="Field boundary must contain one polygon ring.",
+        )
+    ring = coordinates[0]
+    if not isinstance(ring, list) or not 4 <= len(ring) <= MAX_FIELD_VERTICES + 1:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Field boundary must have 3 to {MAX_FIELD_VERTICES} points.",
+        )
+
+    parsed = []
+    for coordinate in ring:
+        if not isinstance(coordinate, list) or len(coordinate) != 2:
+            raise HTTPException(
+                status_code=422,
+                detail="Each field point must contain longitude and latitude.",
+            )
+        longitude, latitude = coordinate
+        if (
+            isinstance(longitude, bool)
+            or isinstance(latitude, bool)
+            or not isinstance(longitude, (int, float))
+            or not isinstance(latitude, (int, float))
+            or not math.isfinite(longitude)
+            or not math.isfinite(latitude)
+            or not -180 <= longitude <= 180
+            or not -90 <= latitude <= 90
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail="Field boundary contains an invalid coordinate.",
+            )
+        parsed.append([float(longitude), float(latitude)])
+
+    if parsed[0] != parsed[-1]:
+        raise HTTPException(
+            status_code=422,
+            detail="Field boundary ring must be closed by repeating its first point.",
+        )
+    if len({(point[0], point[1]) for point in parsed[:-1]}) < 3:
+        raise HTTPException(
+            status_code=422,
+            detail="Field boundary must contain at least 3 distinct points.",
+        )
+    if not _is_simple_ring(parsed):
+        raise HTTPException(
+            status_code=422,
+            detail="Field boundary edges cannot cross or overlap.",
+        )
+
+    radius = 6_371_008.8
+    area_term = sum(
+        math.radians(parsed[index + 1][0] - parsed[index][0])
+        * (
+            2
+            + math.sin(math.radians(parsed[index][1]))
+            + math.sin(math.radians(parsed[index + 1][1]))
+        )
+        for index in range(len(parsed) - 1)
+    )
+    area_sqm = abs(area_term) * radius * radius / 2
+    if not math.isfinite(area_sqm) or area_sqm <= 1:
+        raise HTTPException(status_code=422, detail="Field boundary area is invalid or too small.")
+    if area_sqm > MAX_FIELD_AREA_SQM:
+        raise HTTPException(
+            status_code=422,
+            detail="Field boundary is larger than 5,000 hectares. Draw only the crop field.",
+        )
+
+    canonical = json.dumps(parsed, separators=(",", ":"), ensure_ascii=True)
+    geometry = ee.Geometry.Polygon([parsed], None, True)
+    cache_key = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+    return geometry, area_sqm / 10_000, cache_key
+
+
+def advisor_api_result(lat, lon, soil_ph=None, field_boundary=None):
+    field_geometry, field_area_ha, field_key = _validated_field_boundary(field_boundary)
+    weather, location_static = get_location_data(
+        lat,
+        lon,
+        refresh=False,
+        field_geometry=field_geometry,
+        field_key=field_key,
+    )
     static = dict(location_static)
     if soil_ph is not None:
         static["soil_ph"] = soil_ph
@@ -745,6 +914,12 @@ def advisor_api_result(lat, lon, soil_ph=None):
         "topFiveOverlap": top_five_overlap,
         "soilPHUsed": _api_number(static.get("soil_ph")),
         "soilPHSource": "Farmer-provided soil test" if soil_ph is not None else ("SoilGrids estimate" if static.get("soil_ph") is not None else "Unavailable"),
+        "fieldAreaHa": _api_number(field_area_ha),
+        "samplingBasis": (
+            "Earth Engine field-area mean; climate layers retain native coarse resolution"
+            if field_geometry is not None
+            else None
+        ),
         "recommendations": recommendations,
     }
 
@@ -763,11 +938,17 @@ def recommend_crops_endpoint(
     lat: float = Query(..., ge=-90, le=90),
     lon: float = Query(..., ge=-180, le=180),
     soil_ph: float | None = Query(None, ge=0, le=14),
+    field_boundary: str | None = Query(None, max_length=10_000),
     api_key: str = Header(..., alias="X-API-Key"),
 ):
     require_crop_advisor_key(api_key)
     try:
-        return advisor_api_result(lat, lon, soil_ph=soil_ph)
+        return advisor_api_result(
+            lat,
+            lon,
+            soil_ph=soil_ph,
+            field_boundary=field_boundary,
+        )
     except HTTPException:
         raise
     except Exception as error:

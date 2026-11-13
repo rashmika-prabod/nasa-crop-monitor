@@ -82,3 +82,14 @@ previous lookups are cancelled in the app. A Sri Lankan agro-ecological zone
 authoritative AEZ boundary layer is currently connected, so the UI explicitly
 shows the zone as not mapped. The API returns unavailable values for locations
 outside the configured Sri Lanka district lookup coverage.
+
+Farmers can optionally outline a field on the satellite map (3–50 boundary
+points, up to 5,000 ha). The app sends its GeoJSON polygon with the Crop Advisor
+request; the backend uses Earth Engine region means for elevation, SoilGrids
+pH, CHIRPS rainfall, ERA5-Land weather, and WaPOR ET; it keeps the existing
+pin-only behavior when no boundary is supplied. The displayed field area is
+approximate.
+Weather datasets have kilometre-scale native pixels, so a boundary does not
+provide within-field weather detail beyond those source resolutions. Restart or
+redeploy the backend when updating it to this version; no new API key or Earth
+Engine permission is required beyond the existing service configuration.

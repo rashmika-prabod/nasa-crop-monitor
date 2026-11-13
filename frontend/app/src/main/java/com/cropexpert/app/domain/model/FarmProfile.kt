@@ -1,6 +1,10 @@
 package com.cropexpert.app.domain.model
 
 data class FarmProfile(
+    val lastSeasonCrop: String = "",
+    val harvestLevel: String = "",
+    val residueManagement: String = "",
+    val nutrientInputs: String = "",
     val recentCrops: String = "",
     val rotationYears: String = "",
     val waterAvailability: String = "",
@@ -14,6 +18,16 @@ data class FarmProfile(
 
 fun FarmProfile.soilPHValue(): Double? =
     soilPH.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it in 0.0..14.0 }
+
+fun FarmProfile.lastSeasonCropValue(): String =
+    lastSeasonCrop.ifBlank {
+        recentCrops
+            .split("→", ",", "->")
+            .map(String::trim)
+            .filter(String::isNotBlank)
+            .lastOrNull()
+            .orEmpty()
+    }
 
 val farmPriorities = listOf(
     "Soil health",

@@ -6,7 +6,8 @@ data class RotationPlan(
     val summary: String,
     val crops: List<CropRecommendation> = emptyList(),
     val farmerReportedSequence: String? = null,
-    val isBaseline: Boolean = false
+    val isBaseline: Boolean = false,
+    val sequence: List<String> = emptyList()
 )
 
 fun buildRotationPlans(
@@ -21,53 +22,52 @@ fun buildRotationPlans(
                 .thenBy { it.rank }
         )
 
+    val previousCrop = profile.lastSeasonCropValue()
     val baseline = RotationPlan(
         id = "baseline",
-        title = if (profile.recentCrops.isBlank()) "Current rotation not provided" else "Your current rotation",
-        summary = if (profile.recentCrops.isBlank()) {
-            "No existing crop sequence was assumed."
+        title = if (previousCrop.isBlank()) "Your last-season crop is not set" else "Repeat the last crop",
+        summary = if (previousCrop.isBlank()) {
+            "Choose the crop you grew last season to build rotation sequences."
         } else {
-            "Farmer-reported history"
+            "Baseline for comparison; repeating a crop is not presented as a soil-recovery strategy."
         },
-        farmerReportedSequence = profile.recentCrops.takeIf(String::isNotBlank),
-        isBaseline = true
+        farmerReportedSequence = previousCrop.takeIf(String::isNotBlank),
+        isBaseline = true,
+        sequence = if (previousCrop.isBlank()) emptyList() else listOf(previousCrop, previousCrop)
     )
     val topCandidates = climateCandidates.take(2)
+    val bridgeCrop = topCandidates.firstOrNull()
+    val alternativeBridgeCrop = topCandidates.getOrNull(1)
+    val longTermBridgeCrop = alternativeBridgeCrop ?: bridgeCrop
     val topPlan = RotationPlan(
-        id = "top_candidates",
-        title = "Highest climate-fit candidates",
-        summary = "Top crops from Crop Advisor's climate shortlist",
-        crops = topCandidates
-    )
-    val categoryCandidates = climateCandidates
-        .distinctBy { it.category.lowercase() }
-        .take(3)
-    val categoryMatchesTop = (
-        categoryCandidates.map { it.cropId ?: it.cropName } ==
-        topCandidates.map { it.cropId ?: it.cropName }
-    )
-    val diverseCandidates = if (categoryMatchesTop) {
-        climateCandidates.drop(1).take(2)
-    } else {
-        categoryCandidates.ifEmpty { topCandidates }
-    }
-    val diversePlan = RotationPlan(
-        id = "crop_mix",
-        title = when {
-            diverseCandidates.isEmpty() -> "More candidates needed"
-            diverseCandidates.size > 2 -> "Broader crop-category mix"
-            else -> "Alternative crop candidates"
-        },
-        summary = if (diverseCandidates.any { candidate ->
-                topCandidates.none { top -> (top.cropId ?: top.cropName) == (candidate.cropId ?: candidate.cropName) }
-            }) {
-            "Alternative high climate-ranked crops; category variety used where available"
-        } else if (diverseCandidates.isEmpty()) {
-            "Crop Advisor returned only one climate-ranked candidate; no second option is invented"
+        id = "short_term",
+        title = "Short-term · try a candidate crop",
+        summary = bridgeCrop?.let {
+            "Use Crop Advisor's top climate-ranked candidate after last season's crop."
+        } ?: "Run Crop Advisor to find a candidate crop for the next season.",
+        crops = listOfNotNull(bridgeCrop),
+        sequence = if (previousCrop.isBlank() || bridgeCrop == null) {
+            emptyList()
         } else {
-            "Next climate-ranked candidates available from Crop Advisor"
+            listOf(previousCrop, bridgeCrop.cropName)
+        }
+    )
+    val diversePlan = RotationPlan(
+        id = "return_to_previous",
+        title = "Longer-term · plan a return to the same crop",
+        summary = alternativeBridgeCrop?.let {
+            "Illustrative sequence with another Crop Advisor candidate; a second-season fit is not evaluated."
+        } ?: if (bridgeCrop == null) {
+            "Run Crop Advisor to explore a possible bridge crop before returning to the previous crop."
+        } else {
+            "Illustrative sequence using the top candidate; a second-season fit is not evaluated."
         },
-        crops = diverseCandidates
+        crops = listOfNotNull(longTermBridgeCrop),
+        sequence = if (previousCrop.isBlank() || longTermBridgeCrop == null) {
+            emptyList()
+        } else {
+            listOf(previousCrop, longTermBridgeCrop.cropName, previousCrop)
+        }
     )
     return listOf(baseline, topPlan, diversePlan)
 }
