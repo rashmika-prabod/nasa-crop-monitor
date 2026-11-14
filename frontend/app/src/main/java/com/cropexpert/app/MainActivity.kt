@@ -13,7 +13,7 @@ import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,20 +28,23 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cropexpert.app.ui.dashboard.HomeDashboardScreen
 import com.cropexpert.app.ui.cropadvisor.CropAdvisorScreen
 import com.cropexpert.app.ui.location.LocationSelectionScreen
 import com.cropexpert.app.domain.model.FarmProfile
 import com.cropexpert.app.domain.model.CropRecommendationResponse
 import com.cropexpert.app.domain.model.soilPHValue
-import com.cropexpert.app.ui.rotation.FarmProfileScreen
-import com.cropexpert.app.ui.rotation.FarmProfileSaver
+import com.cropexpert.app.ui.rotation.MyFarmScreen
 import com.cropexpert.app.ui.rotation.RotationPlanDetailScreen
 import com.cropexpert.app.ui.rotation.RotationPlansScreen
 import com.cropexpert.app.ui.splash.SplashScreen
+import com.cropexpert.app.ui.farm.FarmViewModel
 import com.cropexpert.app.ui.theme.ForestGreen
 import com.cropexpert.app.ui.theme.LightMint
 import com.cropexpert.app.ui.theme.Typography
+import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Home : Screen("home/{lat}/{lon}", "Field", Icons.Default.Home) {
@@ -51,7 +54,10 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
         fun createRoute(lat: Double, lon: Double) = "crop_advisor/$lat/$lon"
     }
     object FuturePlan : Screen("future_plan", "Rotation Plans", Icons.Default.Timeline)
-    object MyFarm : Screen("my_farm", "Farm Profile", Icons.Default.Agriculture)
+    object MyFarm : Screen("my_farm", "My Farm", Icons.Default.Agriculture)
+    object LocationSelection : Screen("location_selection/{editing}", "Edit Field", Icons.Default.Agriculture) {
+        fun createRoute(editing: Boolean) = "location_selection/$editing"
+    }
     object PlanDetails : Screen("plan_details/{planId}", "Plan Details", Icons.Default.Timeline) {
         fun createRoute(planId: String) = "plan_details/$planId"
     }
@@ -62,12 +68,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val navController = rememberNavController()
-            var selectedLatitude by rememberSaveable { mutableStateOf(7.8731) }
-            var selectedLongitude by rememberSaveable { mutableStateOf(80.7718) }
-            var selectedFieldBoundary by rememberSaveable { mutableStateOf<String?>(null) }
-            var farmProfile by rememberSaveable(stateSaver = FarmProfileSaver) {
-                mutableStateOf(FarmProfile())
+            val farmViewModel: FarmViewModel = viewModel(
+                factory = ViewModelProvider.AndroidViewModelFactory.getInstance(application)
+            )
+            val coroutineScope = rememberCoroutineScope()
+            val farmEntity by farmViewModel.farm.collectAsState()
+            val soilSamples by farmViewModel.soilSamples.collectAsState()
+            val farmError by farmViewModel.errorMessage.collectAsState()
+            val terrainState by farmViewModel.terrainState.collectAsState()
+            var farmProfile by remember(farmEntity) {
+                mutableStateOf(farmEntity?.toProfile() ?: FarmProfile())
             }
+            val selectedLatitude = farmEntity?.latitude ?: 7.8731
+            val selectedLongitude = farmEntity?.longitude ?: 80.7718
             var advisorResponse by remember { mutableStateOf<CropRecommendationResponse?>(null) }
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentDestination = navBackStackEntry?.destination
@@ -143,20 +156,46 @@ class MainActivity : ComponentActivity() {
                     ) {
                         composable("splash") {
                             SplashScreen(onNavigateToMain = {
-                                navController.navigate("location_selection") {
-                                    popUpTo("splash") { inclusive = true }
+                                coroutineScope.launch {
+                                    val savedFarm = farmViewModel.getSavedFarm()
+                                    if (savedFarm?.latitude != null && savedFarm.longitude != null) {
+                                        navController.navigate(
+                                            Screen.Home.createRoute(
+                                                savedFarm.latitude,
+                                                savedFarm.longitude
+                                            )
+                                        ) {
+                                            popUpTo("splash") { inclusive = true }
+                                        }
+                                    } else {
+                                        navController.navigate(Screen.LocationSelection.createRoute(false)) {
+                                            popUpTo("splash") { inclusive = true }
+                                        }
+                                    }
                                 }
                             })
                         }
-                        composable("location_selection") {
-                            LocationSelectionScreen(onConfirmLocation = { lat, lon, boundary ->
-                                selectedLatitude = lat
-                                selectedLongitude = lon
-                                selectedFieldBoundary = boundary
-                                navController.navigate(Screen.Home.createRoute(lat, lon)) {
-                                    popUpTo("location_selection") { inclusive = true }
+                        composable(
+                            route = Screen.LocationSelection.route,
+                            arguments = listOf(navArgument("editing") { type = NavType.BoolType })
+                        ) { entry ->
+                            val editing = entry.arguments?.getBoolean("editing") ?: false
+                            LocationSelectionScreen(
+                                initialLatitude = selectedLatitude,
+                                initialLongitude = selectedLongitude,
+                                initialBoundaryJson = farmEntity?.boundaryJson,
+                                initialZoom = if (editing) 15f else 7f,
+                                onConfirmLocation = { lat, lon, boundary ->
+                                    farmViewModel.saveLocation(lat, lon, boundary)
+                                    if (editing) {
+                                        navController.popBackStack()
+                                    } else {
+                                        navController.navigate(Screen.Home.createRoute(lat, lon)) {
+                                            popUpTo("splash") { inclusive = true }
+                                        }
+                                    }
                                 }
-                            })
+                            )
                         }
                         composable(
                             route = Screen.Home.route,
@@ -180,7 +219,7 @@ class MainActivity : ComponentActivity() {
                         ) {
                             CropAdvisorScreen(
                                 soilPH = farmProfile.soilPHValue(),
-                                fieldBoundary = selectedFieldBoundary,
+                                fieldBoundary = farmEntity?.boundaryJson,
                                 onUseForRotation = { response ->
                                     advisorResponse = response
                                     navController.navigate(Screen.FuturePlan.route) {
@@ -208,11 +247,25 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable(Screen.MyFarm.route) {
-                            FarmProfileScreen(
+                            MyFarmScreen(
                                 profile = farmProfile,
+                                farm = farmEntity,
+                                soilSamples = soilSamples,
+                                databaseError = farmError,
                                 onSave = {
                                     if (it.soilPH != farmProfile.soilPH) advisorResponse = null
                                     farmProfile = it
+                                    farmViewModel.saveProfile(it)
+                                },
+                                onEditLocation = {
+                                    navController.navigate(Screen.LocationSelection.createRoute(true))
+                                },
+                                onAddSoilSample = farmViewModel::addSoilSample,
+                                onDeleteSoilSample = farmViewModel::deleteSoilSample,
+                                terrainState = terrainState,
+                                onLoadTerrain = farmViewModel::loadTerrain,
+                                onRetryTerrain = {
+                                    farmViewModel.retryTerrain(farmEntity?.boundaryJson)
                                 },
                                 onOpenCropAdvisor = {
                                     navController.navigate(

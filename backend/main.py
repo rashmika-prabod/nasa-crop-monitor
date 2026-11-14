@@ -62,6 +62,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+
+@app.get("/")
+def root():
+    return {
+        "service": "NASA Crop Monitor API",
+        "message": "Backend is running.",
+        "docs": "/docs",
+        "health": "/health",
+    }
+
+
 app.add_api_route(
     "/recommend-crops",
     recommend_crops_endpoint,

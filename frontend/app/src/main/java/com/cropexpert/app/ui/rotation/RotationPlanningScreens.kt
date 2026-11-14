@@ -39,6 +39,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,7 +55,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.PopupProperties
+import com.cropexpert.app.data.local.FarmEntity
+import com.cropexpert.app.data.local.SoilSampleEntity
 import com.cropexpert.app.domain.model.FarmProfile
+import com.cropexpert.app.domain.model.FarmTerrainState
 import com.cropexpert.app.domain.model.CropRecommendationResponse
 import com.cropexpert.app.domain.model.RotationPlan
 import com.cropexpert.app.domain.model.buildRotationPlans
@@ -64,6 +68,12 @@ import com.cropexpert.app.domain.model.soilPHValue
 import com.cropexpert.app.ui.theme.ForestGreen
 import com.cropexpert.app.ui.theme.LightMint
 import com.cropexpert.app.ui.theme.Typography
+import com.cropexpert.app.ui.farm.MyFarmMapCard
+import com.cropexpert.app.ui.farm.SoilSampleEntryDialog
+import com.cropexpert.app.ui.farm.SoilSamplesSection
+import com.cropexpert.app.ui.location.isInsideBoundary
+import com.cropexpert.app.ui.location.parseBoundaryJson
+import com.google.android.gms.maps.model.LatLng
 import java.text.NumberFormat
 
 val FarmProfileSaver = Saver<FarmProfile, List<String>>(
@@ -122,15 +132,38 @@ private val supportedRotationCrops = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FarmProfileScreen(
+fun MyFarmScreen(
     profile: FarmProfile,
+    farm: FarmEntity?,
+    soilSamples: List<SoilSampleEntity>,
+    databaseError: String? = null,
     onSave: (FarmProfile) -> Unit,
-    onOpenCropAdvisor: () -> Unit
+    onOpenCropAdvisor: () -> Unit,
+    onEditLocation: () -> Unit,
+    onAddSoilSample: (SoilSampleEntity) -> Unit,
+    onDeleteSoilSample: (Long) -> Unit,
+    terrainState: FarmTerrainState = FarmTerrainState.Empty,
+    onLoadTerrain: (String?) -> Unit = {},
+    onRetryTerrain: () -> Unit = {}
 ) {
     var currentProfile by remember(profile) { mutableStateOf(profile) }
     var cropHistoryExpanded by remember { mutableStateOf(false) }
     var soilTestExpanded by remember { mutableStateOf(false) }
     var constraintsExpanded by remember { mutableStateOf(false) }
+    var pendingSamplePosition by remember { mutableStateOf<LatLng?>(null) }
+    var mapMessage by remember { mutableStateOf<String?>(null) }
+    val boundaryPoints = remember(farm?.boundaryJson) {
+        parseBoundaryJson(farm?.boundaryJson)
+    }
+    val samplesOutsideBoundary = remember(boundaryPoints, soilSamples) {
+        if (boundaryPoints.size < 3) 0 else
+            soilSamples.count {
+                !LatLng(it.latitude, it.longitude).isInsideBoundary(boundaryPoints)
+            }
+    }
+    LaunchedEffect(farm?.boundaryJson) {
+        onLoadTerrain(farm?.boundaryJson)
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -140,10 +173,54 @@ fun FarmProfileScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         ScreenHeader(
-            eyebrow = "ROTATION START",
-            title = "What did you grow last season?",
-            subtitle = "Start with one crop. The extra details are optional."
+            eyebrow = "YOUR FIELD",
+            title = "My Farm",
+            subtitle = "Manage your field location, soil notes, and farm context."
         )
+        MyFarmMapCard(
+            farm = farm,
+            samples = soilSamples,
+            terrainState = terrainState,
+            onRetryTerrain = onRetryTerrain,
+            onEditLocation = onEditLocation,
+            onMapLongClick = { point ->
+                when {
+                    boundaryPoints.size < 3 ->
+                        mapMessage = "Outline your field before adding a soil sample."
+                    !point.isInsideBoundary(boundaryPoints) ->
+                        mapMessage = "Place soil samples inside the field boundary."
+                    else -> {
+                        mapMessage = null
+                        pendingSamplePosition = point
+                    }
+                }
+            }
+        )
+        databaseError?.let {
+            CompactInfoBanner("Could not save farm information: $it")
+        }
+        mapMessage?.let { Text(it, color = Color(0xFF9B1C1C), fontSize = 12.sp) }
+        Text(
+            if (boundaryPoints.size >= 3) {
+                "The field is rendered as a clipped, textured 3D terrain model. Drag to orbit, pinch to zoom, and long-press the field to add a soil-test point."
+            } else {
+                "Plot your farm boundary to generate a 3D terrain model clipped to that field."
+            },
+            color = Color.Gray,
+            fontSize = 12.sp
+        )
+        SoilSamplesSection(
+            samples = soilSamples,
+            onDeleteSample = onDeleteSoilSample
+        )
+        if (samplesOutsideBoundary > 0) {
+            CompactInfoBanner(
+                "$samplesOutsideBoundary saved soil sample${if (samplesOutsideBoundary == 1) " is" else "s are"} outside the current outline. Records were kept when the boundary changed; review their map pins."
+            )
+        }
+        if (farm?.boundaryJson != null && boundaryPoints.size < 3) {
+            CompactInfoBanner("The saved boundary could not be displayed. Edit the field boundary to draw it again; saved soil tests are retained.")
+        }
         CompactInfoBanner(
             text = "Crop Advisor will find climate-ranked crops to follow it. Soil benefits are not assessed until crop-trait data are added."
         )
@@ -228,7 +305,7 @@ fun FarmProfileScreen(
                 supportingText = if (currentProfile.soilPH.isNotBlank() && currentProfile.soilPHValue() == null) {
                     "Enter a pH value from 0 to 14."
                 } else {
-                    "Only pH is currently used by Crop Advisor; other nutrients are recorded but not scored."
+                    "This profile pH is the separate Crop Advisor override; mapped soil-test points above are not scored yet."
                 }
             )
             ProfileTextField(
@@ -294,6 +371,13 @@ fun FarmProfileScreen(
         }
 
         val invalidSoilPH = currentProfile.soilPH.isNotBlank() && currentProfile.soilPHValue() == null
+        OutlinedButton(
+            onClick = { onSave(currentProfile.normalized()) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !invalidSoilPH
+        ) {
+            Text("Save My Farm details", color = ForestGreen)
+        }
         Button(
             onClick = {
                 onSave(currentProfile.normalized())
@@ -312,6 +396,17 @@ fun FarmProfileScreen(
             fontSize = 12.sp
         )
         Spacer(Modifier.height(8.dp))
+    }
+
+    pendingSamplePosition?.let { point ->
+        SoilSampleEntryDialog(
+            point = point,
+            onDismiss = { pendingSamplePosition = null },
+            onSave = { sample ->
+                onAddSoilSample(sample)
+                pendingSamplePosition = null
+            }
+        )
     }
 }
 
@@ -341,10 +436,10 @@ fun RotationPlansScreen(
             title = "Plan what follows",
             subtitle = profile.lastSeasonCropValue().takeIf(String::isNotBlank)?.let {
                 "Starting with ${it}, explore a candidate crop and a possible return."
-            } ?: "Choose last season's crop in Farm Profile to build A → B → A ideas."
+            } ?: "Choose last season's crop in My Farm to build A → B → A ideas."
         )
         if (profile.lastSeasonCropValue().isBlank()) {
-            CompactInfoBanner("Add the crop you grew last season in Farm Profile. The app can still show Crop Advisor candidates, but it won't invent the previous crop.")
+            CompactInfoBanner("Add the crop you grew last season in My Farm. The app can still show Crop Advisor candidates, but it won't invent the previous crop.")
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StatusPill("Last season: ${profile.lastSeasonCropValue()}", Color(0xFFE2F2E6), ForestGreen)
@@ -399,7 +494,7 @@ fun RotationPlansScreen(
             }
         }
         OutlinedButton(onClick = onEditProfile, modifier = Modifier.fillMaxWidth()) {
-            Text("Edit farm profile", color = ForestGreen)
+            Text("Open My Farm", color = ForestGreen)
         }
         Button(
             onClick = onOpenCropAdvisor,
@@ -495,7 +590,7 @@ fun RotationPlanDetailScreen(
         }
         CompactInfoBanner("Harvest, input, and residue details are optional context only; they do not yet change the candidate score.")
         OutlinedButton(onClick = onEditProfile, modifier = Modifier.fillMaxWidth()) {
-            Text("Edit farm profile", color = ForestGreen)
+            Text("Open My Farm", color = ForestGreen)
         }
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
             Text("Back to comparison", color = ForestGreen)
@@ -829,10 +924,15 @@ private fun FarmProfile.normalized(): FarmProfile = copy(
 @Composable
 private fun FarmProfileScreenPreview() {
     MaterialTheme(typography = Typography) {
-        FarmProfileScreen(
+        MyFarmScreen(
             profile = FarmProfile(lastSeasonCrop = "Rice"),
+            farm = null,
+            soilSamples = emptyList(),
             onSave = {},
-            onOpenCropAdvisor = {}
+            onOpenCropAdvisor = {},
+            onEditLocation = {},
+            onAddSoilSample = {},
+            onDeleteSoilSample = {}
         )
     }
 }

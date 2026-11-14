@@ -1,7 +1,37 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.kapt")
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
+}
+
+def backendBaseUrl = providers.gradleProperty("BACKEND_BASE_URL")
+        .orElse(providers.environmentVariable("BACKEND_BASE_URL"))
+        .getOrElse("http://127.0.0.1:8000/")
+def cropAdvisorApiKey = providers.gradleProperty("CROP_ADVISOR_API_KEY")
+        .orElse(providers.environmentVariable("CROP_ADVISOR_API_KEY"))
+        .getOrElse("")
+def validateReleaseConfiguration = {
+    def parsedBackendUrl
+    try {
+        parsedBackendUrl = URI.create(backendBaseUrl.trim())
+    } catch (IllegalArgumentException error) {
+        throw new GradleException("Release builds require a valid HTTPS BACKEND_BASE_URL.", error)
+    }
+    if (!"https".equalsIgnoreCase(parsedBackendUrl.scheme) || !parsedBackendUrl.host) {
+        throw new GradleException("Release builds require an HTTPS BACKEND_BASE_URL.")
+    }
+    if (cropAdvisorApiKey.trim().isEmpty()) {
+        throw new GradleException("Release builds require CROP_ADVISOR_API_KEY.")
+    }
+}
+
+tasks.configureEach {
+    if (name == "preReleaseBuild") {
+        doFirst {
+            validateReleaseConfiguration()
+        }
+    }
 }
 
 android {
@@ -15,7 +45,9 @@ android {
         versionCode 1
         versionName "1.0"
         buildConfigField "String", "BACKEND_BASE_URL",
-                "\"${project.findProperty('BACKEND_BASE_URL') ?: 'http://127.0.0.1:8000/'}\""
+                groovy.json.JsonOutput.toJson(backendBaseUrl)
+        buildConfigField "String", "CROP_ADVISOR_API_KEY",
+                groovy.json.JsonOutput.toJson(cropAdvisorApiKey)
     }
 
     buildFeatures {
@@ -63,6 +95,11 @@ dependencies {
 
     // Coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+
+    // Local farm and soil-test persistence
+    implementation 'androidx.room:room-runtime:2.6.1'
+    implementation 'androidx.room:room-ktx:2.6.1'
+    kapt 'androidx.room:room-compiler:2.6.1'
 
     debugImplementation 'androidx.compose.ui:ui-tooling'
 }

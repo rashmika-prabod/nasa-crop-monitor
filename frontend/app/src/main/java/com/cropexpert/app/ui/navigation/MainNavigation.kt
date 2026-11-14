@@ -28,7 +28,7 @@ import com.cropexpert.app.domain.model.FarmProfile
 import com.cropexpert.app.domain.model.CropRecommendationResponse
 import com.cropexpert.app.domain.model.soilPHValue
 import com.cropexpert.app.ui.cropadvisor.CropAdvisorScreen
-import com.cropexpert.app.ui.rotation.FarmProfileScreen
+import com.cropexpert.app.ui.rotation.MyFarmScreen
 import com.cropexpert.app.ui.rotation.FarmProfileSaver
 import com.cropexpert.app.ui.rotation.RotationPlanDetailScreen
 import com.cropexpert.app.ui.rotation.RotationPlansScreen
@@ -39,7 +39,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Home : Screen("home", "Field", Icons.Default.Home)
     object CropAdvisor : Screen("crop_advisor", "Crop Advisor", Icons.Default.Psychology)
     object FuturePlan : Screen("future_plan", "Rotation Plans", Icons.Default.Timeline)
-    object MyFarm : Screen("my_farm", "Farm Profile", Icons.Default.Agriculture)
+    object MyFarm : Screen("my_farm", "My Farm", Icons.Default.Agriculture)
     object PlanDetails : Screen("plan_details/{planId}", "Plan Details", Icons.Default.Timeline) {
         fun createRoute(planId: String) = "plan_details/$planId"
     }
@@ -126,12 +126,17 @@ fun MainNavigation() {
                 )
             }
             composable(Screen.MyFarm.route) {
-                FarmProfileScreen(
+                MyFarmScreen(
                     profile = farmProfile,
+                    farm = null,
+                    soilSamples = emptyList(),
                     onSave = {
                         if (it.soilPH != farmProfile.soilPH) advisorResponse = null
                         farmProfile = it
                     },
+                    onEditLocation = {},
+                    onAddSoilSample = {},
+                    onDeleteSoilSample = {},
                     onOpenCropAdvisor = { navController.navigate(Screen.CropAdvisor.route) }
                 )
             }

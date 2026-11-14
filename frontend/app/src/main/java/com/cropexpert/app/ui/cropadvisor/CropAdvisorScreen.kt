@@ -27,7 +27,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Eco
@@ -43,7 +42,6 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,13 +49,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.cropexpert.app.BuildConfig
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.request.CachePolicy
@@ -96,16 +91,8 @@ fun CropAdvisorScreen(
     viewModel: CropAdvisorViewModel = viewModel(factory = CropAdvisorViewModel.Factory)
 ) {
     val state by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
-    val preferences = remember {
-        context.getSharedPreferences("crop_advisor_hosted", android.content.Context.MODE_PRIVATE)
-    }
-    var backendUrl by rememberSaveable {
-        mutableStateOf(preferences.getString("base_url", NetworkConfig.BASE_URL).orEmpty())
-    }
-    var apiKey by remember {
-        mutableStateOf(preferences.getString("api_key", "").orEmpty())
-    }
+    val backendUrl = NetworkConfig.BASE_URL
+    val apiKey = BuildConfig.CROP_ADVISOR_API_KEY
 
     LaunchedEffect(backendUrl, apiKey, soilPH, fieldBoundary) {
         if (backendUrl.isNotBlank() && apiKey.isNotBlank()) {
@@ -132,22 +119,6 @@ fun CropAdvisorScreen(
                 state.response?.let { response ->
                     ContextHeader(response)
                 } ?: AdvisorTitle()
-            }
-
-            item {
-                AdvisorConnectionPanel(
-                    backendUrl = backendUrl,
-                    onBackendUrlChange = { backendUrl = it },
-                    apiKey = apiKey,
-                    onApiKeyChange = { apiKey = it },
-                    onConnect = {
-                        preferences.edit()
-                            .putString("base_url", backendUrl.trim())
-                            .putString("api_key", apiKey.trim())
-                            .apply()
-                        viewModel.loadRecommendations(backendUrl, apiKey, soilPH, fieldBoundary)
-                    }
-                )
             }
 
             item {
@@ -181,7 +152,7 @@ fun CropAdvisorScreen(
                 item {
                     EmptyRecommendations(
                         isLoading = false,
-                        message = "Enter the shared service API key above to load recommendations."
+                        message = "Crop Advisor is not configured in this app build. Please install the deployment build."
                     )
                 }
             } else if (state.errorMessage != null && state.response == null) {
@@ -278,59 +249,6 @@ fun CropAdvisorScreen(
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AdvisorConnectionPanel(
-    backendUrl: String,
-    onBackendUrlChange: (String) -> Unit,
-    apiKey: String,
-    onApiKeyChange: (String) -> Unit,
-    onConnect: () -> Unit
-) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
-        ) {
-            Text(
-                text = "CROP ADVISOR SERVICE",
-                color = ForestGreen,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Black
-            )
-            OutlinedTextField(
-                value = backendUrl,
-                onValueChange = onBackendUrlChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("HTTPS service URL") },
-                placeholder = { Text("https://your-service.onrender.com") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
-            )
-            OutlinedTextField(
-                value = apiKey,
-                onValueChange = onApiKeyChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Service API key") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation()
-            )
-            Button(
-                onClick = onConnect,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = backendUrl.startsWith("https://", ignoreCase = true) && apiKey.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)
-            ) {
-                Text("Connect and run model")
             }
         }
     }

@@ -1,37 +1,73 @@
 # Frontend Module
 This folder contains the Android application and other frontend-related assets.
 
-## Hosted API and Crop Advisor
+## Early deployment: hosted API and APK
 
-The Android app uses `NetworkConfig.BASE_URL` for telemetry and location
-profiles. Set the Gradle property `BACKEND_BASE_URL` when building a shared APK:
+The Render blueprint in `render.yaml` deploys the complete FastAPI backend,
+including location/terrain APIs and the migrated Crop Advisor endpoint. The
+deployed app uses one `BACKEND_BASE_URL` automatically for all of these
+features; farmers do not enter a service URL or API key. The deployed Android
+app uses the Render-hosted model and does not depend on a running Colab runtime.
+
+Before deploying, push the intended code and data files to the Git branch
+connected to Render. The backend needs the datasets under `backend/data`.
+Render reads the Python version from `backend/.python-version` and installs
+`backend/requirements.txt`.
+
+In the Render dashboard, set these environment variables for the service:
+
+- `EE_PROJECT`: the Google Cloud project enabled for Earth Engine.
+- `EE_SERVICE_ACCOUNT_JSON`: the complete service-account JSON as a secret.
+  Ensure that account has Earth Engine access to the required datasets.
+- `CROP_ADVISOR_API_KEY`: a long random key used by the backend and injected
+  into the app at build time.
+
+Never commit the Earth Engine credentials, API key, Maps key, or signing
+credentials. The local `backend/service_account.json` is gitignored and must
+remain untracked. The Android Maps key is read from `local.properties`; restrict
+it to this app's package/signing certificate and the Maps SDK.
+
+After deployment, check `https://YOUR-SERVICE.onrender.com/health`. It should
+return `{"status":"ok"}`. This health check also verifies Earth Engine
+initialization, so an error requires inspecting the Render logs and fixing the
+project/service-account setup before testing the app.
+
+Set the same HTTPS Render URL and API key in the build environment, then build
+a private test APK from the repository root in PowerShell:
 
 ```powershell
-.\gradlew.bat :frontend:app:assembleDebug "-PBACKEND_BASE_URL=https://YOUR-SERVICE.onrender.com/"
+$env:BACKEND_BASE_URL = "https://YOUR-SERVICE.onrender.com/"
+$env:CROP_ADVISOR_API_KEY = "THE-SAME-KEY-CONFIGURED-IN-RENDER"
+.\gradlew.bat :frontend:app:assembleDebug
 ```
 
-The Crop Advisor endpoint was migrated from `backend_1.ipynb` to
-`backend/crop_advisor.py`; it serves the forecast, crop-ranking, profit, and
-image fields from the same FastAPI service. Its input datasets are packaged
-under `backend/data`. Configure `CROP_ADVISOR_API_KEY` as a secret in the
-hosting dashboard and enter that value in the Crop Advisor connection panel.
-The service uses Earth Engine datasets for the selected coordinates.
+The APK is at
+`frontend\app\build\outputs\apk\debug\app-debug.apk`. Install it on a test
+device. App screens use the configured Render URL automatically, and Crop
+Advisor sends the configured key automatically. Release builds reject missing
+or non-HTTPS backend configuration. The repository has no release signing
+configuration; create a signed release APK through Android Studio only after
+setting up a private signing key.
 
-`render.yaml` describes a free Render web service. Connect the repository in
-Render and deploy the blueprint, then set `EE_SERVICE_ACCOUNT_JSON` to the
-Earth Engine service-account JSON in Render's environment settings. Never put
-that credential in the repository or APK. The local
-`backend/service_account.json` is gitignored and must remain untracked. The
-Render free instance sleeps after inactivity, uses
-ephemeral disk for its location cache, and can take about a minute to wake; it
-is intended for a no-cost demo, not always-on production use.
+**Prototype security limitation:** the Crop Advisor key is compiled into the
+APK, where it can be extracted. It is not a production secret or robust user
+authentication. Limit distribution to trusted testers, monitor API usage, and
+rotate the key in Render and in every newly built APK if it is exposed. A
+production release should replace this shared-key scheme with user
+authentication and server-side authorization.
+
+The free Render service may sleep after inactivity, causing cold starts, and
+uses ephemeral disk for caches. It is suitable for a no-cost early demo, not
+reliable always-on service.
 
 The Google Maps API key is injected locally by the Gradle secrets plugin from
 `local.properties` and is included in the APK. Restrict it to this app's
 package/signing certificate and the Maps SDK; do not commit the properties file.
 
-`backend_1.ipynb` remains the analysis notebook, but the shared APK should use
-the hosted API rather than a temporary Colab/ngrok URL.
+`backend_1.ipynb` remains available for model development and experimentation.
+Its temporary Colab/ngrok URL is not used by the deployed APK. Notebook edits do
+not automatically update Render; port desired model changes into
+`backend/crop_advisor.py`, test them, then push and redeploy.
 
 The Crop Advisor offers two ranking modes. **Climate Resilience** ranks
 eligible crops by their suitability across the forecast crop cycle, selecting
@@ -53,24 +89,47 @@ a crop-name placeholder.
 ## Rotation planning prototype
 
 The app's Rotation Plans screen compares a farmer-reported baseline with two
-Crop Advisor-generated candidate sets. The highest-climate-fit option uses the
-climate-ranked candidate list; the mixed-category option chooses highly ranked
-candidates from different categories where available. The prototype does not
-validate crop-family breaks, pest-cycle interruption, or whether successive
-candidate planting windows form a feasible multi-season rotation. Treat these
-as candidates to review, not planting recommendations.
+Crop Advisor-generated candidate sets. Both candidate sequences use the highest
+climate-ranked recommendations; the second sequence is illustrative and does
+not enforce crop-category diversity. The prototype does not validate
+crop-family breaks, pest-cycle interruption, or whether successive candidate
+planting windows form a feasible multi-season rotation. Treat these as
+candidates to review, not planting recommendations.
 
 Farm history, soil-test results, water access, constraints, and priorities are
 optional. A farmer-provided soil pH is passed to the Crop Advisor API and can
 replace the coarse SoilGrids pH value in its existing crop pH suitability factor.
 Other entered nutrients are retained as profile context but are not used in
 scoring because the current crop model has no matching nutrient scoring inputs.
-The API response reports which pH source it used. Update the API cell in the
-live Colab notebook to accept `soil_ph` and return `soilPHUsed`/`soilPHSource`;
-until then, the app will show that the API did not report the source and the
-manual pH will not be applied by that old server. The current crop and economics
-datasets are scoped to the Uma Oya / Sri Lankan prototype and should not be
-treated as globally representative.
+The API response reports which pH source it used. The current crop and
+economics datasets are scoped to the Uma Oya / Sri Lankan prototype and should
+not be treated as globally representative.
+
+## My Farm
+
+My Farm stores one active farm's coordinates, optional field boundary, existing
+farm-profile details, and soil-test point records in a local Room database on
+the Android device. With no boundary, the field-model panel prompts the farmer
+to draw one. For a saved boundary, the app requests `/farm-terrain` from the
+backend. Earth Engine clips a Sentinel-2 surface-reflectance composite to that
+polygon and samples USGS SRTM GL1 elevation for a bounded height grid. Android
+renders the imagery over an OpenGL ES terrain mesh with polygon-clipped
+textures, raised soil-colored sides, orbit, zoom, and long-press sample entry.
+No Google Map tiles, map labels, or markers are rendered in this model.
+
+The SRTM source is approximately 30 m and is not fine enough to represent
+small within-field features. Vertical relief is automatically exaggerated so
+subtle elevation differences are visible; it is a visualization, not a
+survey-grade elevation product. A valid Earth Engine deployment is required to
+load the model. Field area is calculated from the saved outline. Editing the
+location or boundary retains soil-test records, and the screen warns when
+saved sample points fall outside the current outline.
+
+Farmers can long-press inside the outline to add a dated sample with location,
+depth, pH, nitrogen, phosphorus, potassium, and test source. These records are
+currently informational and do not feed crop scoring. Crop Advisor continues
+to use the separate farm-profile pH field as its optional manual override.
+Farm data is device-local and is not synced to the backend or another device.
 
 ## Agro-climatic location profile
 

@@ -60,7 +60,7 @@ class CropAdvisorViewModel(
         if (!normalizedUrl.startsWith("https://", ignoreCase = true) || apiKey.isBlank()) {
             _uiState.value = _uiState.value.copy(
                 isConfigured = false,
-                errorMessage = "Enter the HTTPS service URL and API key."
+                errorMessage = "Crop Advisor is not configured in this app build."
             )
             return
         }
