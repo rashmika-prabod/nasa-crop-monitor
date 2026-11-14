@@ -107,59 +107,6 @@ class FarmTerrainBoundaryTests(unittest.TestCase):
         self.assertEqual(result["bounds"], [80.0, 6.0, 80.0002, 6.0002])
         self.assertTrue(result["texturePngBase64"])
 
-    @patch("main.ee.ImageCollection")
-    @patch("main.ee.Image")
-    @patch("main.ee.Geometry.Polygon")
-    def test_endpoint_returns_shaded_terrain_when_texture_permission_is_denied(
-        self,
-        polygon_factory,
-        image_factory,
-        collection_factory,
-    ):
-        geometry = MagicMock()
-        polygon_factory.return_value = geometry
-        geometry.bounds.return_value = MagicMock()
-
-        dem = MagicMock()
-        image_factory.return_value.select.return_value = dem
-        grid = dem.clip.return_value.resample.return_value.reproject.return_value
-        grid.sampleRectangle.return_value.getInfo.return_value = {
-            "properties": {"elevation": [[12, 13], [14, 15]]}
-        }
-
-        imagery = (
-            collection_factory.return_value
-            .filterBounds.return_value
-            .filterDate.return_value
-            .filter.return_value
-            .median.return_value
-            .select.return_value
-            .visualize.return_value
-            .clip.return_value
-        )
-        imagery.getThumbURL.side_effect = RuntimeError(
-            "Permission 'earthengine.thumbnails.create' denied"
-        )
-        request = SimpleNamespace(
-            app=SimpleNamespace(
-                state=SimpleNamespace(ee_initialization_error=None)
-            )
-        )
-        body = main.FarmTerrainRequest(boundary=[
-            TerrainCoordinate(lat=6.0, lon=80.0),
-            TerrainCoordinate(lat=6.0, lon=80.0002),
-            TerrainCoordinate(lat=6.0002, lon=80.0002),
-            TerrainCoordinate(lat=6.0002, lon=80.0),
-        ])
-
-        with patch("main.ee.Filter.lt", return_value=MagicMock()):
-            with self.assertLogs("main", level="WARNING"):
-                result = main.get_farm_terrain(request, body)
-
-        self.assertEqual(result["elevationGrid"], [[12, 13], [14, 15]])
-        self.assertEqual(result["texturePngBase64"], "")
-        self.assertIn("showing shaded terrain", result["imagerySource"])
-
 
 if __name__ == "__main__":
     unittest.main()

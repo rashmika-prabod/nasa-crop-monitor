@@ -236,16 +236,7 @@ def get_farm_terrain(request: Request, body: FarmTerrainRequest):
             elevation_grid = [elevation_grid[0], elevation_grid[0]]
         if any(len(row) == 1 for row in elevation_grid):
             elevation_grid = [row * 2 if len(row) == 1 else row for row in elevation_grid]
-    except Exception as error:
-        logger.exception("Earth Engine farm terrain request failed")
-        raise HTTPException(
-            status_code=502,
-            detail="Could not retrieve the clipped field terrain. Please try again.",
-        ) from error
 
-    texture_png = b""
-    imagery_source = "Satellite imagery unavailable; showing shaded terrain."
-    try:
         one_year_ago = datetime.now(timezone.utc) - timedelta(days=365 * 3)
         imagery = (
             ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
@@ -270,19 +261,19 @@ def get_farm_terrain(request: Request, body: FarmTerrainRequest):
                 or not texture_png.startswith(b"\x89PNG\r\n\x1a\n")
             ):
                 raise ValueError("Earth Engine returned an invalid or oversized texture.")
-        imagery_source = "Sentinel-2 surface reflectance · 3-year median"
-    except Exception:
-        logger.warning(
-            "Satellite texture unavailable for farm terrain; returning shaded elevation model.",
-            exc_info=True,
-        )
+    except Exception as error:
+        logger.exception("Earth Engine farm terrain request failed")
+        raise HTTPException(
+            status_code=502,
+            detail="Could not retrieve the clipped field terrain. Please try again.",
+        ) from error
 
     return {
         "bounds": [min(lons), min(lats), max(lons), max(lats)],
         "elevationGrid": elevation_grid,
         "texturePngBase64": base64.b64encode(texture_png).decode("ascii"),
         "elevationSource": "USGS SRTM GL1 · approximately 30 m",
-        "imagerySource": imagery_source,
+        "imagerySource": "Sentinel-2 surface reflectance · 3-year median",
     }
 
 
