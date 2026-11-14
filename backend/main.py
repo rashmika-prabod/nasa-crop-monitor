@@ -1,6 +1,9 @@
+import base64
 import logging
+import math
 import os
 import json
+import urllib.request
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -97,6 +100,170 @@ class LocationProfileResponse(BaseModel):
     agroZone: str
     elevationMeters: Optional[float] = None
     source: str
+
+
+class TerrainCoordinate(BaseModel):
+    lat: float
+    lon: float
+
+
+class FarmTerrainRequest(BaseModel):
+    boundary: List[TerrainCoordinate]
+
+
+def _validate_terrain_boundary(points: List[TerrainCoordinate]) -> List[TerrainCoordinate]:
+    if len(points) > 3 and points[0] == points[-1]:
+        points = points[:-1]
+    if not 3 <= len(points) <= 50:
+        raise HTTPException(status_code=422, detail="A field boundary needs 3 to 50 points.")
+    if any(not math.isfinite(point.lat) or not math.isfinite(point.lon) for point in points):
+        raise HTTPException(status_code=422, detail="Boundary coordinates must be finite.")
+    if any(
+        point.lat < -90
+        or point.lat > 90
+        or point.lon < -180
+        or point.lon > 180
+        for point in points
+    ):
+        raise HTTPException(status_code=422, detail="Boundary coordinates are out of range.")
+
+    longitudes = [point.lon for point in points]
+    latitudes = [point.lat for point in points]
+    if max(longitudes) - min(longitudes) > 2 or max(latitudes) - min(latitudes) > 2:
+        raise HTTPException(status_code=422, detail="The field boundary is too large for terrain rendering.")
+
+    latitude = math.radians(sum(latitudes) / len(latitudes))
+    x = [math.radians(lon) * 6_371_008.8 * math.cos(latitude) for lon in longitudes]
+    y = [math.radians(lat) * 6_371_008.8 for lat in latitudes]
+    area = abs(sum(
+        x[index] * y[(index + 1) % len(points)] -
+        x[(index + 1) % len(points)] * y[index]
+        for index in range(len(points))
+    )) / 2
+    if area < 200 or area > 50_000_000:
+        raise HTTPException(
+            status_code=422,
+            detail="Field area must be between 0.02 and 5,000 hectares.",
+        )
+
+    def orientation(a, b, c):
+        return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+    def on_segment(a, b, point):
+        return (
+            min(a[0], b[0]) - 1e-6 <= point[0] <= max(a[0], b[0]) + 1e-6
+            and min(a[1], b[1]) - 1e-6 <= point[1] <= max(a[1], b[1]) + 1e-6
+        )
+
+    vertices = list(zip(x, y))
+    for first in range(len(vertices)):
+        a, b = vertices[first], vertices[(first + 1) % len(vertices)]
+        for second in range(first + 1, len(vertices)):
+            if second == first or second == (first + 1) % len(vertices) or (first == 0 and second == len(vertices) - 1):
+                continue
+            c, d = vertices[second], vertices[(second + 1) % len(vertices)]
+            o1, o2 = orientation(a, b, c), orientation(a, b, d)
+            o3, o4 = orientation(c, d, a), orientation(c, d, b)
+            if (
+                (o1 * o2 < 0 and o3 * o4 < 0)
+                or (abs(o1) <= 1e-6 and on_segment(a, b, c))
+                or (abs(o2) <= 1e-6 and on_segment(a, b, d))
+                or (abs(o3) <= 1e-6 and on_segment(c, d, a))
+                or (abs(o4) <= 1e-6 and on_segment(c, d, b))
+            ):
+                raise HTTPException(status_code=422, detail="Field boundary must not cross itself.")
+    return points
+
+
+@app.post("/farm-terrain")
+def get_farm_terrain(request: Request, body: FarmTerrainRequest):
+    if request.app.state.ee_initialization_error is not None:
+        raise HTTPException(
+            status_code=503,
+            detail="Earth Engine is unavailable. Check the server credentials and configuration.",
+        )
+    points = _validate_terrain_boundary(body.boundary)
+
+    ring = [[point.lon, point.lat] for point in points]
+    ring.append(ring[0])
+    geometry = ee.Geometry.Polygon([ring], proj="EPSG:4326", geodesic=False)
+    bounds = geometry.bounds(maxError=1)
+    try:
+        dem = ee.Image("USGS/SRTMGL1_003").select("elevation")
+        # Bound the returned height grid while retaining bilinear elevation relief.
+        lons = [point.lon for point in points]
+        lats = [point.lat for point in points]
+        width_m = (max(lons) - min(lons)) * 111_320 * math.cos(
+            math.radians(sum(lats) / len(lats))
+        )
+        height_m = (max(lats) - min(lats)) * 111_320
+        scale_m = max(10, max(width_m, height_m) / 120)
+        grid = dem.clip(geometry).resample("bilinear").reproject(
+            crs=dem.projection().atScale(scale_m)
+        )
+        elevation_result = grid.sampleRectangle(
+            region=bounds,
+        ).getInfo()
+        elevation_grid = elevation_result["properties"]["elevation"]
+        if not elevation_grid or not elevation_grid[0]:
+            raise ValueError("Earth Engine returned an empty elevation grid.")
+        if not any(
+            value is not None and math.isfinite(value)
+            for row in elevation_grid
+            for value in row
+        ):
+            mean_elevation = dem.reduceRegion(
+                reducer=ee.Reducer.mean(),
+                geometry=geometry,
+                scale=30,
+                maxPixels=4096,
+            ).get("elevation").getInfo()
+            if mean_elevation is None:
+                raise ValueError("No SRTM elevation samples intersect this field.")
+            elevation_grid = [[mean_elevation, mean_elevation], [mean_elevation, mean_elevation]]
+        if len(elevation_grid) == 1:
+            elevation_grid = [elevation_grid[0], elevation_grid[0]]
+        if any(len(row) == 1 for row in elevation_grid):
+            elevation_grid = [row * 2 if len(row) == 1 else row for row in elevation_grid]
+
+        one_year_ago = datetime.now(timezone.utc) - timedelta(days=365 * 3)
+        imagery = (
+            ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+            .filterBounds(geometry)
+            .filterDate(one_year_ago.date().isoformat(), datetime.now(timezone.utc).date().isoformat())
+            .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 50))
+            .median()
+            .select(["B4", "B3", "B2"])
+            .visualize(min=0, max=3000)
+            .clip(geometry)
+        )
+        thumbnail_url = imagery.getThumbURL({
+            "region": bounds,
+            "dimensions": 512,
+            "format": "png",
+        })
+        with urllib.request.urlopen(thumbnail_url, timeout=60) as response:
+            texture_png = response.read(2_000_001)
+            if (
+                response.status != 200
+                or len(texture_png) > 2_000_000
+                or not texture_png.startswith(b"\x89PNG\r\n\x1a\n")
+            ):
+                raise ValueError("Earth Engine returned an invalid or oversized texture.")
+    except Exception as error:
+        logger.exception("Earth Engine farm terrain request failed")
+        raise HTTPException(
+            status_code=502,
+            detail="Could not retrieve the clipped field terrain. Please try again.",
+        ) from error
+
+    return {
+        "bounds": [min(lons), min(lats), max(lons), max(lats)],
+        "elevationGrid": elevation_grid,
+        "texturePngBase64": base64.b64encode(texture_png).decode("ascii"),
+        "elevationSource": "USGS SRTM GL1 · approximately 30 m",
+        "imagerySource": "Sentinel-2 surface reflectance · 3-year median",
+    }
 
 
 def _sample_value(image, point, band: str, scale: int):
