@@ -142,7 +142,7 @@ fun MyFarmMapCard(
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     CircularProgressIndicator(color = ForestGreen)
                                     Spacer(Modifier.height(8.dp))
-                                    Text("Loading clipped satellite imagery and elevation…", color = ForestGreen)
+                                    Text("Loading clipped field terrain…", color = ForestGreen)
                                 }
                             }
                             is FarmTerrainState.Error -> {
@@ -165,11 +165,11 @@ fun MyFarmMapCard(
                                     modifier = Modifier.fillMaxSize(),
                                     factory = { context ->
                                         TerrainSurfaceView(context, onMapLongClick).apply {
-                                            showTerrain(terrainState.terrain, boundaryPoints)
+                                            showTerrain(terrainState.terrain, boundaryPoints, samples)
                                         }
                                     },
                                     update = { view ->
-                                        view.showTerrain(terrainState.terrain, boundaryPoints)
+                                        view.showTerrain(terrainState.terrain, boundaryPoints, samples)
                                     }
                                 )
                             }
@@ -179,7 +179,7 @@ fun MyFarmMapCard(
             }
             if (hasFieldBoundary && terrainState is FarmTerrainState.Ready) {
                 Text(
-                    "Drag to orbit · pinch to zoom · long-press inside the field to add a soil test. Relief is vertically exaggerated for visibility.",
+                    "Drag to orbit · pinch to zoom · long-press inside the field to add a soil test. Saved test points are highlighted in yellow.",
                     color = Color.Gray,
                     fontSize = 11.sp
                 )
@@ -303,7 +303,12 @@ fun SoilSampleEntryDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    String.format(Locale.US, "%.5f, %.5f", point.latitude, point.longitude),
+                    String.format(
+                        Locale.US,
+                        "Lat %.6f  ·  Lon %.6f",
+                        point.latitude,
+                        point.longitude
+                    ),
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp
                 )

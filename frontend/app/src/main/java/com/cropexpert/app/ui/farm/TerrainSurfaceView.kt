@@ -10,6 +10,7 @@ import android.opengl.GLSurfaceView
 import android.opengl.Matrix
 import android.util.Base64
 import android.view.MotionEvent
+import com.cropexpert.app.data.local.SoilSampleEntity
 import com.cropexpert.app.domain.model.FarmTerrainResponse
 import com.google.android.gms.maps.model.LatLng
 import java.nio.ByteBuffer
@@ -30,6 +31,7 @@ internal class TerrainSurfaceView(
     private val terrainRenderer = TerrainRenderer()
     private var lastTerrain: FarmTerrainResponse? = null
     private var lastBoundary: List<LatLng> = emptyList()
+    private var lastSamples: List<SoilSampleEntity> = emptyList()
     private var startX = 0f
     private var startY = 0f
     private var previousX = 0f
@@ -46,12 +48,20 @@ internal class TerrainSurfaceView(
         isClickable = true
     }
 
-    fun showTerrain(terrain: FarmTerrainResponse?, boundary: List<LatLng>) {
-        if (terrain === lastTerrain && boundary == lastBoundary) return
+    fun showTerrain(
+        terrain: FarmTerrainResponse?,
+        boundary: List<LatLng>,
+        samples: List<SoilSampleEntity>
+    ) {
+        val terrainChanged = terrain !== lastTerrain || boundary != lastBoundary
+        val samplesChanged = samples != lastSamples
+        if (!terrainChanged && !samplesChanged) return
         lastTerrain = terrain
         lastBoundary = boundary.toList()
+        lastSamples = samples.toList()
         queueEvent {
-            terrainRenderer.setTerrain(terrain, boundary)
+            if (terrainChanged) terrainRenderer.setTerrain(terrain, boundary)
+            if (samplesChanged) terrainRenderer.setSamples(samples)
             requestRender()
         }
     }
@@ -150,7 +160,15 @@ private class TerrainRenderer : GLSurfaceView.Renderer {
     private var sideVertexCount = 0
     private var bottomVertices: FloatBuffer? = null
     private var bottomVertexCount = 0
+    private var markerBorderVertices: FloatBuffer? = null
+    private var markerBorderVertexCount = 0
+    private var markerCenterVertices: FloatBuffer? = null
+    private var markerCenterVertexCount = 0
     private var imageBytes: ByteArray? = null
+    private var elevations: List<List<Double>> = emptyList()
+    private var elevationLow = 0.0
+    private var verticalScale = 0.0
+    private var savedSamples: List<SoilSampleEntity> = emptyList()
     private var longitudeSpan = 0.0
     private var latitudeSpan = 0.0
     private var minLongitude = 0.0
@@ -178,7 +196,17 @@ private class TerrainRenderer : GLSurfaceView.Renderer {
             sideVertices = null
             bottomVertices = null
             imageBytes = null
+            elevations = emptyList()
+            markerBorderVertices = null
+            markerBorderVertexCount = 0
+            markerCenterVertices = null
+            markerCenterVertexCount = 0
         }
+    }
+
+    fun setSamples(samples: List<SoilSampleEntity>) {
+        savedSamples = samples.toList()
+        rebuildMarkers()
     }
 
     fun orbit(dx: Float, dy: Float) {
@@ -193,24 +221,67 @@ private class TerrainRenderer : GLSurfaceView.Renderer {
     }
 
     fun fieldPointAt(screenX: Float, screenY: Float, width: Int, height: Int): LatLng? {
-        if (width <= 0 || height <= 0 || boundary.size < 3 || longitudeSpan <= 0 || latitudeSpan <= 0) {
+        if (width <= 0 || height <= 0 || boundary.size < 3 ||
+            longitudeSpan <= 0 || latitudeSpan <= 0 || elevations.isEmpty()
+        ) {
             return null
         }
         val near = unproject(screenX, screenY, 0f, width, height) ?: return null
         val far = unproject(screenX, screenY, 1f, width, height) ?: return null
-        val deltaY = far[1] - near[1]
-        if (kotlin.math.abs(deltaY) < 1e-6f) return null
-        val fraction = (0.32f - near[1]) / deltaY
-        if (fraction !in 0f..1f) return null
-        val x = near[0] + (far[0] - near[0]) * fraction
-        val z = near[2] + (far[2] - near[2]) * fraction
-        val u = x / widthWorld + 0.5
-        val v = 0.5 - z / heightWorld
-        val candidate = LatLng(
-            maxLatitude - v * latitudeSpan,
-            minLongitude + u * longitudeSpan
-        )
-        return candidate.takeIf { isInside(it, boundary) }
+        var previousT = 0f
+        var previousGap: Float? = null
+        val steps = 256
+        for (step in 0..steps) {
+            val t = step.toFloat() / steps
+            val x = near[0] + (far[0] - near[0]) * t
+            val z = near[2] + (far[2] - near[2]) * t
+            val u = x / widthWorld + 0.5f
+            val v = 0.5f - z / heightWorld
+            val projectedPoint = Point2(u, v)
+            if (u !in 0f..1f || v !in 0f..1f || !isInside(projectedPoint, texturePolygon)) {
+                previousGap = null
+                continue
+            }
+            val surfaceY = surfaceHeight(u, v)
+            val rayY = near[1] + (far[1] - near[1]) * t
+            val gap = rayY - surfaceY
+            val priorGap = previousGap
+            if (priorGap != null &&
+                (priorGap == 0f || gap == 0f || (priorGap < 0f) != (gap < 0f))
+            ) {
+                var lowT = previousT
+                var highT = t
+                var lowGap: Float = priorGap
+                repeat(18) {
+                    val middleT = (lowT + highT) / 2f
+                    val middleX = near[0] + (far[0] - near[0]) * middleT
+                    val middleZ = near[2] + (far[2] - near[2]) * middleT
+                    val middleU = middleX / widthWorld + 0.5f
+                    val middleV = 0.5f - middleZ / heightWorld
+                    val middleY = near[1] + (far[1] - near[1]) * middleT
+                    val middleGap = middleY - surfaceHeight(middleU, middleV)
+                    if ((lowGap <= 0f) == (middleGap <= 0f)) {
+                        lowT = middleT
+                        lowGap = middleGap
+                    } else {
+                        highT = middleT
+                    }
+                }
+                val hitT = (lowT + highT) / 2f
+                val hitX = near[0] + (far[0] - near[0]) * hitT
+                val hitZ = near[2] + (far[2] - near[2]) * hitT
+                val hitU = (hitX / widthWorld + 0.5f).toDouble()
+                val hitV = (0.5f - hitZ / heightWorld).toDouble()
+                val hit = LatLng(
+                    maxLatitude - hitV * latitudeSpan,
+                    minLongitude + hitU * longitudeSpan
+                )
+                if (isInside(hit, boundary)) return hit
+            }
+            previousT = t
+            previousGap = gap
+        }
+        return null
     }
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
@@ -262,8 +333,20 @@ private class TerrainRenderer : GLSurfaceView.Renderer {
         )
         GLES20.glUniform3f(GLES20.glGetUniformLocation(program, "uLight"), -0.45f, 0.85f, 0.5f)
         drawBuffer(topVertices, topVertexCount, textured = textureId != 0)
-        drawBuffer(sideVertices, sideVertexCount, textured = false)
-        drawBuffer(bottomVertices, bottomVertexCount, textured = false)
+        drawBuffer(sideVertices, sideVertexCount, textured = false, solidColor = SIDES_COLOR)
+        drawBuffer(bottomVertices, bottomVertexCount, textured = false, solidColor = SIDES_COLOR)
+        drawBuffer(
+            markerBorderVertices,
+            markerBorderVertexCount,
+            textured = false,
+            solidColor = MARKER_BORDER_COLOR
+        )
+        drawBuffer(
+            markerCenterVertices,
+            markerCenterVertexCount,
+            textured = false,
+            solidColor = MARKER_CENTER_COLOR
+        )
     }
 
     private fun buildMesh(data: FarmTerrainResponse, points: List<LatLng>) {
@@ -300,6 +383,9 @@ private class TerrainRenderer : GLSurfaceView.Renderer {
         val high = validElevations.maxOrNull() ?: low
         val relief = max(high - low, 0.75)
         val verticalScale = 0.72 / relief
+        this.elevations = elevations
+        elevationLow = low
+        this.verticalScale = verticalScale
         val bottomY = -0.18f
         val projectedPoints = points.map { point ->
             Point2(
@@ -374,7 +460,72 @@ private class TerrainRenderer : GLSurfaceView.Renderer {
         sideVertexCount = sides.count
         bottomVertices = bottom.toBuffer()
         bottomVertexCount = bottom.count
+        rebuildMarkers()
         uploadTexture()
+    }
+
+    private fun rebuildMarkers() {
+        if (elevations.isEmpty() || boundary.size < 3 || longitudeSpan <= 0 || latitudeSpan <= 0) {
+            markerBorderVertices = null
+            markerBorderVertexCount = 0
+            markerCenterVertices = null
+            markerCenterVertexCount = 0
+            return
+        }
+        val border = FloatList()
+        val centers = FloatList()
+        val radius = (max(widthWorld, heightWorld) * 0.018f).coerceIn(0.018f, 0.045f)
+        savedSamples.forEach { sample ->
+            val point = LatLng(sample.latitude, sample.longitude)
+            if (!isInside(point, boundary)) return@forEach
+            val u = ((point.longitude - minLongitude) / longitudeSpan).toFloat()
+            val v = ((maxLatitude - point.latitude) / latitudeSpan).toFloat()
+            if (u !in 0f..1f || v !in 0f..1f) return@forEach
+            val x = (u - 0.5f) * widthWorld
+            val z = (0.5f - v) * heightWorld
+            val y = surfaceHeight(u, v) + MARKER_HEIGHT_OFFSET
+            appendDisk(border, x, y, z, radius, 0.05f)
+            appendDisk(centers, x, y + 0.002f, z, radius * 0.68f, 0.05f)
+        }
+        markerBorderVertices = border.toBuffer()
+        markerBorderVertexCount = border.count
+        markerCenterVertices = centers.toBuffer()
+        markerCenterVertexCount = centers.count
+    }
+
+    private fun appendDisk(target: FloatList, x: Float, y: Float, z: Float, radius: Float, normalY: Float) {
+        val segments = 20
+        val normal = floatArrayOf(0f, normalY, 0f)
+        for (segment in 0 until segments) {
+            val firstAngle = segment * 2.0 * Math.PI / segments
+            val secondAngle = (segment + 1) * 2.0 * Math.PI / segments
+            val center = Vertex(x, y, z, 0f, 0f)
+            val first = Vertex(
+                x + kotlin.math.cos(firstAngle).toFloat() * radius,
+                y,
+                z + kotlin.math.sin(firstAngle).toFloat() * radius,
+                0f,
+                0f
+            )
+            val second = Vertex(
+                x + kotlin.math.cos(secondAngle).toFloat() * radius,
+                y,
+                z + kotlin.math.sin(secondAngle).toFloat() * radius,
+                0f,
+                0f
+            )
+            target.add(center, normal)
+            target.add(first, normal)
+            target.add(second, normal)
+        }
+    }
+
+    private fun surfaceHeight(u: Float, v: Float): Float {
+        val rows = elevations.size
+        val columns = elevations.firstOrNull()?.size ?: return 0f
+        if (rows == 0 || columns == 0) return 0f
+        return ((sampleGrid(elevations, u.toDouble(), v.toDouble(), columns, rows) - elevationLow) *
+            verticalScale).toFloat()
     }
 
     private fun uploadTexture() {
@@ -418,7 +569,12 @@ private class TerrainRenderer : GLSurfaceView.Renderer {
         bitmap.recycle()
     }
 
-    private fun drawBuffer(buffer: FloatBuffer?, count: Int, textured: Boolean) {
+    private fun drawBuffer(
+        buffer: FloatBuffer?,
+        count: Int,
+        textured: Boolean,
+        solidColor: FloatArray = SIDES_COLOR
+    ) {
         if (buffer == null || count == 0) return
         buffer.position(0)
         val stride = 8 * 4
@@ -436,10 +592,10 @@ private class TerrainRenderer : GLSurfaceView.Renderer {
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uUseTexture"), if (textured) 1 else 0)
         GLES20.glUniform4f(
             GLES20.glGetUniformLocation(program, "uSolidColor"),
-            if (textured) 1f else 0.34f,
-            if (textured) 1f else 0.24f,
-            if (textured) 1f else 0.15f,
-            1f
+            if (textured) 1f else solidColor[0],
+            if (textured) 1f else solidColor[1],
+            if (textured) 1f else solidColor[2],
+            solidColor[3]
         )
         if (textured && textureId != 0) {
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
@@ -747,6 +903,10 @@ private class TerrainRenderer : GLSurfaceView.Renderer {
     }
 
     private companion object {
+        val SIDES_COLOR = floatArrayOf(0.34f, 0.24f, 0.15f, 1f)
+        val MARKER_BORDER_COLOR = floatArrayOf(0.09f, 0.15f, 0.08f, 1f)
+        val MARKER_CENTER_COLOR = floatArrayOf(1f, 0.78f, 0.08f, 1f)
+        const val MARKER_HEIGHT_OFFSET = 0.025f
         const val VERTEX_SHADER = """
             attribute vec3 aPosition;
             attribute vec3 aNormal;

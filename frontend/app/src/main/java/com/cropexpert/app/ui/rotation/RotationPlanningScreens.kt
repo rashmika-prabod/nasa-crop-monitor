@@ -202,7 +202,7 @@ fun MyFarmScreen(
         mapMessage?.let { Text(it, color = Color(0xFF9B1C1C), fontSize = 12.sp) }
         Text(
             if (boundaryPoints.size >= 3) {
-                "The field is rendered as a clipped, textured 3D terrain model. Drag to orbit, pinch to zoom, and long-press the field to add a soil-test point."
+                "The field is rendered as a clipped 3D terrain model. Drag to orbit, pinch to zoom, and long-press the field to add a soil-test point."
             } else {
                 "Plot your farm boundary to generate a 3D terrain model clipped to that field."
             },
