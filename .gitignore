@@ -42,6 +42,8 @@ env/
 text
 # Python
 backend/venv/
+backend/.venv/
 backend/__pycache__/
 backend/.env
+backend/.demo-cache/
 backend/service_account.json

@@ -32,22 +32,61 @@ return `{"status":"ok"}`. This health check also verifies Earth Engine
 initialization, so an error requires inspecting the Render logs and fixing the
 project/service-account setup before testing the app.
 
-Set the same HTTPS Render URL and API key in the build environment, then build
-a private test APK from the repository root in PowerShell:
+The Android build defaults to `https://nasa-crop-monitor.onrender.com/`, so
+farmers do not configure a URL. Before building an APK, set the same API key
+that is configured in Render in your local PowerShell session, then build from
+the repository root:
 
 ```powershell
-$env:BACKEND_BASE_URL = "https://YOUR-SERVICE.onrender.com/"
-$env:CROP_ADVISOR_API_KEY = "THE-SAME-KEY-CONFIGURED-IN-RENDER"
-.\gradlew.bat :frontend:app:assembleDebug
+$secureKey = Read-Host 'Enter the Render CROP_ADVISOR_API_KEY' -AsSecureString
+$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
+try {
+    $env:CROP_ADVISOR_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+    .\gradlew.bat :frontend:app:assembleRenderDebug
+    if ($LASTEXITCODE -ne 0) { throw "Render APK build failed." }
+} finally {
+    Remove-Item Env:CROP_ADVISOR_API_KEY -ErrorAction SilentlyContinue
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+}
 ```
 
+If you use a different backend, also set `BACKEND_BASE_URL` to its HTTPS URL.
+Render debug APK builds require an HTTPS URL and all APK builds require an API
+key. The two local demo variants described below allow HTTP only for their
+private-network endpoints. Ordinary compile tasks can still run without the
+key. The key is never prompted from farmers, and must not be committed or
+pasted into source files.
+
 The APK is at
-`frontend\app\build\outputs\apk\debug\app-debug.apk`. Install it on a test
-device. App screens use the configured Render URL automatically, and Crop
-Advisor sends the configured key automatically. Release builds reject missing
-or non-HTTPS backend configuration. The repository has no release signing
+`frontend\app\build\outputs\apk\render\debug\app-render-debug.apk`. Install it
+on a test device. App screens use the configured Render URL automatically,
+and Crop Advisor sends the configured key automatically. Release builds
+require an HTTPS backend URL. The repository has no release signing
 configuration; create a signed release APK through Android Studio only after
 setting up a private signing key.
+
+To make APK builds from Android Studio work without setting a PowerShell
+environment variable each time, store the key in your **user-level** Gradle
+properties file. On Windows, open or create
+`%USERPROFILE%\.gradle\gradle.properties` and add:
+
+```properties
+CROP_ADVISOR_API_KEY=your-demo-key
+```
+
+Replace the example with the same key configured on the backend. This file is
+outside the repository and is not committed. Do not put the key in tracked
+project files. Android Studio uses this Gradle property for APK builds; after
+adding it, sync the project and run the build again. Alternatively, set the
+`CROP_ADVISOR_API_KEY` environment variable in the environment that launches
+Gradle.
+
+On startup, the app opens the location picker only when no farm location is
+saved. Updating or reinstalling over an existing app can preserve its local
+farm database, in which case it opens the saved farm directly; use **My Farm >
+Edit Field** to change its location. Clearing the app's storage also shows the
+picker next launch, but permanently deletes farm/profile and soil-sample data
+stored on that phone.
 
 **Prototype security limitation:** the Crop Advisor key is compiled into the
 APK, where it can be extracted. It is not a production secret or robust user
@@ -59,6 +98,110 @@ authentication and server-side authorization.
 The free Render service may sleep after inactivity, causing cold starts, and
 uses ephemeral disk for caches. It is suitable for a no-cost early demo, not
 reliable always-on service.
+
+## Local laptop demo for judges
+
+For an in-person demo, the FastAPI backend can run on the laptop instead of
+Colab or Render. Crop Advisor analysis runs automatically when the app calls
+`/recommend-crops`; no notebook needs to be open. The first request for a
+location fetches historical data from Earth Engine and can take several
+minutes. The laptop keeps that location cache in the ignored
+`backend\.demo-cache` folder, so later requests can reuse it.
+Climate datasets have much coarser pixels than a farm plot: very small drawn
+fields use the climate pixel at the field centroid, while larger fields use a
+field-area mean.
+
+The laptop needs Python 3.11 or 3.13, internet access, and the ignored
+`backend\service_account.json` file with Earth Engine access. In PowerShell
+from the repository root, start the API with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-demo-backend.ps1
+```
+
+The script prefers Python 3.11 and falls back to 3.13 if 3.11 is not
+installed. It creates a local virtual environment and installs backend
+dependencies on the first run, asks for the demo `CROP_ADVISOR_API_KEY` without
+echoing it, and starts the server. Keep that PowerShell window open and prevent
+the laptop from sleeping for the entire demo. Check
+`http://127.0.0.1:8000/health` on the laptop; it should return
+`{"status":"ok"}`.
+
+The app accepts HTTP only for loopback and private LAN addresses used by the
+local demo variants; deployed backend URLs must use HTTPS.
+
+If you also want a Wi-Fi APK, build it with your private LAN address. Use a
+demo-only key, and enter the same key when the backend launcher prompts and
+during the APK build; do not put it in `local.properties`, source code, or a
+message. The USB helper below builds and installs its APK automatically.
+
+```powershell
+$secureKey = Read-Host 'Enter the demo CROP_ADVISOR_API_KEY' -AsSecureString
+$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
+try {
+    $env:CROP_ADVISOR_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+    $env:DEMO_LAN_HOST = '192.168.1.25'
+    .\gradlew.bat :frontend:app:assembleDemoWifiDebug
+    if ($LASTEXITCODE -ne 0) { throw "Wi-Fi APK build failed." }
+    .\gradlew.bat :frontend:app:assembleDemoUsbDebug
+    if ($LASTEXITCODE -ne 0) { throw "USB APK build failed." }
+} finally {
+    Remove-Item Env:CROP_ADVISOR_API_KEY -ErrorAction SilentlyContinue
+    Remove-Item Env:DEMO_LAN_HOST -ErrorAction SilentlyContinue
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+}
+```
+
+Replace `192.168.1.25` with the laptop's private IPv4 address shown by
+`ipconfig` for the Wi-Fi network used by the phones. If the laptop's address
+changes, rebuild the Wi-Fi APK with the new address. The APKs are
+`frontend\app\build\outputs\apk\demoWifi\debug\app-demoWifi-debug.apk` and
+`frontend\app\build\outputs\apk\demoUsb\debug\app-demoUsb-debug.apk`.
+
+**Wi-Fi alternative:** connect every phone and the laptop to the same trusted
+private Wi-Fi or laptop hotspot. If Windows asks, mark that network
+**Private**. In an elevated PowerShell, allow the backend port only on
+Private networks:
+
+```powershell
+New-NetFirewallRule -DisplayName "Crop Expert Demo API (Private)" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8000 -Profile Private
+```
+
+Install the Wi-Fi APK on the judges' phones and verify the backend is ready
+before opening Crop Advisor. Guest Wi-Fi may block devices from reaching one
+another; use a private hotspot instead. Do not configure router port
+forwarding or expose this demo server to the public internet.
+
+**USB/ADB (recommended at a venue with public Wi-Fi):** the phone talks to the
+laptop through USB, so the venue network, client isolation, and the laptop's
+changing Wi-Fi address do not matter. Enable Developer options and USB
+debugging on each phone, connect it to the laptop, and accept the phone's
+"Allow USB debugging" prompt. Start the backend first, then run this from the
+repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-demo-usb.ps1
+```
+
+The script checks that the backend is healthy and a phone is authorized,
+prompts for the same demo API key used by the backend, builds the USB APK,
+sets up `adb reverse`, and installs the app on every connected authorized
+phone. Keep the backend running and the USB cable attached during the demo.
+Android SDK Platform-Tools (`adb`) must be installed; if it is not on `PATH`,
+the script checks the standard Android SDK locations.
+
+Before judging, call Crop Advisor once at the intended demo location and leave
+the laptop backend running until the calculation finishes. Verify the
+recommendations, then reopen that same location for the warm-cache demo.
+Earth Engine quota, network speed, or dataset access can still cause failures.
+After the event, remove the temporary firewall rule with
+`Remove-NetFirewallRule -DisplayName "Crop Expert Demo API (Private)"`.
+
+These are demo APKs: the shared API key is embedded in each APK and can be
+extracted. Use a demo-only key, share APKs only with the judges, and rotate the
+key after the hackathon. Never copy Earth Engine credentials to a phone or
+APK. The laptop must remain awake and on the network; this is not a public,
+always-on deployment.
 
 The Google Maps API key is injected locally by the Gradle secrets plugin from
 `local.properties` and is included in the APK. Restrict it to this app's
@@ -111,11 +254,14 @@ My Farm stores one active farm's coordinates, optional field boundary, existing
 farm-profile details, and soil-test point records in a local Room database on
 the Android device. With no boundary, the field-model panel prompts the farmer
 to draw one. For a saved boundary, the app requests `/farm-terrain` from the
-backend. Earth Engine clips a Sentinel-2 surface-reflectance composite to that
-polygon and samples USGS SRTM GL1 elevation for a bounded height grid. Android
-renders the imagery over an OpenGL ES terrain mesh with polygon-clipped
-textures, raised soil-colored sides, orbit, zoom, and long-press sample entry.
-No Google Map tiles, map labels, or markers are rendered in this model.
+backend. Earth Engine samples USGS SRTM GL1 elevation for a bounded height
+grid and, when permitted, clips a Sentinel-2 surface-reflectance composite to
+the field polygon. Android renders the imagery as a polygon-clipped texture
+when available; if Earth Engine thumbnail permission or imagery retrieval
+fails, it still renders the shaded elevation mesh with raised soil-colored
+sides, orbit, zoom, and long-press sample entry. The backend logs the imagery
+failure and reports its unavailable status. No Google Map tiles, map labels,
+or markers are rendered in this model.
 
 The SRTM source is approximately 30 m and is not fine enough to represent
 small within-field features. Vertical relief is automatically exaggerated so
