@@ -168,6 +168,7 @@ private class TerrainRenderer : GLSurfaceView.Renderer {
         if (value != null && fieldBoundary.size >= 3) {
             imageBytes = try {
                 Base64.decode(value.texturePngBase64, Base64.DEFAULT)
+                    .takeIf { it.isNotEmpty() }
             } catch (_: IllegalArgumentException) {
                 null
             }
@@ -260,7 +261,7 @@ private class TerrainRenderer : GLSurfaceView.Renderer {
             0
         )
         GLES20.glUniform3f(GLES20.glGetUniformLocation(program, "uLight"), -0.45f, 0.85f, 0.5f)
-        drawBuffer(topVertices, topVertexCount, textured = true)
+        drawBuffer(topVertices, topVertexCount, textured = textureId != 0)
         drawBuffer(sideVertices, sideVertexCount, textured = false)
         drawBuffer(bottomVertices, bottomVertexCount, textured = false)
     }
@@ -377,7 +378,14 @@ private class TerrainRenderer : GLSurfaceView.Renderer {
     }
 
     private fun uploadTexture() {
-        val bytes = imageBytes ?: return
+        val bytes = imageBytes
+        if (bytes == null) {
+            if (textureId != 0) {
+                GLES20.glDeleteTextures(1, intArrayOf(textureId), 0)
+                textureId = 0
+            }
+            return
+        }
         val source = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return
         val bitmap = android.graphics.Bitmap.createBitmap(
             source.width,

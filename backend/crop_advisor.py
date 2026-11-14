@@ -96,6 +96,12 @@ CROPS, NET_DF, REV_DF, PROFIT_DF = load_tables()
 def _monthly_series(collection_id, bands, reducer, geometry, scale, spatial_mean=False):
     """Monthly sum/mean in bounded Earth Engine batches to limit memory use."""
     ic = ee.ImageCollection(collection_id).select(bands)
+    sample_geometry = geometry
+    use_spatial_mean = spatial_mean
+    if spatial_mean and geometry.area(1).getInfo() < scale * scale:
+        # A small field may contain no pixel center at the climate raster scale.
+        sample_geometry = geometry.centroid(1)
+        use_spatial_mean = False
     latest = pd.Timestamp(
         ee.Date(ic.aggregate_max("system:time_start")).format("YYYY-MM").getInfo() + "-01"
     )
@@ -111,8 +117,8 @@ def _monthly_series(collection_id, bands, reducer, geometry, scale, spatial_mean
         def per_month(i):
             s = start.advance(ee.Number(i), "month")
             img = getattr(ic.filterDate(s, s.advance(1, "month")), reducer)()
-            spatial_reducer = ee.Reducer.mean() if spatial_mean else ee.Reducer.first()
-            vals = img.reduceRegion(spatial_reducer, geometry, scale, maxPixels=1e9)
+            spatial_reducer = ee.Reducer.mean() if use_spatial_mean else ee.Reducer.first()
+            vals = img.reduceRegion(spatial_reducer, sample_geometry, scale, maxPixels=1e9)
             return ee.Feature(None, vals).set("t", s.millis())
 
         features = ee.FeatureCollection(
@@ -120,8 +126,12 @@ def _monthly_series(collection_id, bands, reducer, geometry, scale, spatial_mean
         ).getInfo()["features"]
         rows.extend(feature["properties"] for feature in features)
 
+    if not rows:
+        raise ValueError(f"Earth Engine returned no monthly samples for {collection_id}")
     df = pd.DataFrame(rows)
-    df.index = pd.to_datetime(df.pop("t"), unit="ms").dt.to_period("M").dt.to_timestamp()
+    timestamps = pd.to_datetime(df.pop("t"), unit="ms").dt.to_period("M").dt.to_timestamp()
+    df = df.reindex(columns=bands)
+    df.index = timestamps
     return df.iloc[:-1]          # drop the newest month: it can be incomplete
 
 

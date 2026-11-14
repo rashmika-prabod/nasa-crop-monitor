@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.cropexpert.app.data.repository.CropAdvisorRepository
 import com.cropexpert.app.domain.model.CropRecommendation
 import com.cropexpert.app.domain.model.CropRecommendationResponse
+import java.net.URI
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,7 +58,7 @@ class CropAdvisorViewModel(
         fieldBoundary: String? = null
     ) {
         val normalizedUrl = baseUrl.trim().trimEnd('/') + "/"
-        if (!normalizedUrl.startsWith("https://", ignoreCase = true) || apiKey.isBlank()) {
+        if (!isAllowedBackendUrl(normalizedUrl) || apiKey.isBlank()) {
             _uiState.value = _uiState.value.copy(
                 isConfigured = false,
                 errorMessage = "Crop Advisor is not configured in this app build."
@@ -98,6 +99,32 @@ class CropAdvisorViewModel(
                 )
             }
         }
+    }
+
+    private fun isAllowedBackendUrl(baseUrl: String): Boolean {
+        val uri = try {
+            URI(baseUrl)
+        } catch (_: Exception) {
+            return false
+        }
+        val host = uri.host ?: return false
+        if (uri.userInfo != null) return false
+
+        if (uri.scheme.equals("https", ignoreCase = true)) return true
+        if (!uri.scheme.equals("http", ignoreCase = true)) return false
+        if (host.equals("localhost", ignoreCase = true) || host == "127.0.0.1" || host == "::1") {
+            return true
+        }
+
+        val octets = host.split(".")
+        if (octets.size != 4 || octets.any { octet ->
+                octet.isEmpty() || octet.any { !it.isDigit() }
+            }) return false
+        val address = octets.map { it.toIntOrNull() ?: return false }
+        if (address.any { it !in 0..255 }) return false
+        return address[0] == 10 ||
+            (address[0] == 172 && address[1] in 16..31) ||
+            (address[0] == 192 && address[1] == 168)
     }
 
     fun setPriority(priority: RecommendationPriority) {
