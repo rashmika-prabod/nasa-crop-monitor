@@ -491,7 +491,7 @@ private fun CropRecommendationCard(
                 ) {
                     Text(
                         text = if (priority == RecommendationPriority.MAXIMUM_PROFIT) {
-                            "HISTORICAL PROFIT PER DAY"
+                            "ESTIMATED NET INCOME PER HECTARE"
                         } else {
                             "EST. RISK-ADJUSTED RETURN"
                         },
@@ -501,12 +501,12 @@ private fun CropRecommendationCard(
                     )
                     Text(
                         text = (if (priority == RecommendationPriority.MAXIMUM_PROFIT) {
-                            recommendation.profitPerDay
+                            recommendation.estimatedNetProfitPerHa
                         } else {
                             recommendation.expectedProfit
                         })?.let {
                             if (priority == RecommendationPriority.MAXIMUM_PROFIT) {
-                                "Rs. ${it.format(0)}/ha/day"
+                                "Rs. ${it.format(0)}/ha"
                             } else {
                                 "Rs. ${it.format(0)}/ha"
                             }

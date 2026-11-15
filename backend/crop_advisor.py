@@ -536,7 +536,7 @@ def risk_adjusted(net, gross, s):
 def rank_crops(weather, start_from, static, irrigated=False, previous_crop=None, district=None,
                min_suitability=MIN_SUITABILITY, n_start_months=12, return_all=False,
                selection_metric="risk_adjusted"):
-    """Choose each crop's planting month by climate fit, profit/day, or risk-adjusted return."""
+    """Choose each crop's planting month by climate fit, profit, or risk-adjusted return."""
     blocked_family = None
     if previous_crop:
         blocked_family = CROPS.loc[CROPS.crop_id == previous_crop, "crop_family"].iloc[0]
@@ -570,6 +570,8 @@ def rank_crops(weather, start_from, static, irrigated=False, previous_crop=None,
             elif selection_metric == "profit_per_day":
                 per_day = eco["net"] / days if not np.isnan(eco["net"]) else -np.inf
                 key = (per_day, suit)
+            elif selection_metric == "profit_per_ha":
+                key = (eco["net"] if not np.isnan(eco["net"]) else -np.inf, -off)
             else:
                 key = (-np.inf if np.isnan(adj) else adj, suit)
             if best is None or key > best[0]:
@@ -856,7 +858,7 @@ def advisor_api_result(lat, lon, soil_ph=None, field_boundary=None):
         previous_crop=None,
         district=district,
         return_all=True,
-        selection_metric="profit_per_day",
+        selection_metric="profit_per_ha",
     )
     backtest = recommendation_backtest(results, static, irrigated=False, district=district)
     correlation = _api_number(backtest.get("suitability_rank_corr")) if backtest else None
@@ -887,6 +889,7 @@ def advisor_api_result(lat, lon, soil_ph=None, field_boundary=None):
                 "category": _crop_category(crop["crop_group"]),
                 "suitabilityScore": int(round(float(row["suitability"]) * 100)),
                 "expectedProfit": _api_number(row["risk_adj_return_lkr_ha"]),
+                "netProfitPerHa": _api_number(row["net_return_lkr_ha"]),
                 "profitPerDay": _api_number(row["net_return_lkr_ha"] / duration_days),
                 "profitBasis": str(row["profit_basis"]),
                 "profitConfidence": str(row["profit_confidence"]),

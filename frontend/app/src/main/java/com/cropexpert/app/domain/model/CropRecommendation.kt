@@ -49,5 +49,13 @@ data class CropRecommendation(
     val topFiveOverlap: Int?,
     val rankingMode: String = "climate",
     val profitPerDay: Double? = null,
+    val netProfitPerHa: Double? = null,
     val cropId: String? = null
-)
+) {
+    val estimatedNetProfitPerHa: Double?
+        get() = netProfitPerHa?.takeIf(Double::isFinite)
+            ?: profitPerDay
+                ?.takeIf { it.isFinite() && durationDays > 0 }
+                ?.times(durationDays)
+                ?.takeIf(Double::isFinite)
+}

@@ -145,6 +145,8 @@ class CropAdvisorViewModel(
         val recommendations = response?.recommendations.orEmpty()
             .filter { recommendation ->
                 recommendation.rankingMode.equals(requestedMode, ignoreCase = true) &&
+                    (priority != RecommendationPriority.MAXIMUM_PROFIT ||
+                        recommendation.estimatedNetProfitPerHa != null) &&
                     (category == CropCategoryFilter.ALL ||
                     recommendation.category.equals(category.label, ignoreCase = true))
             }
@@ -157,8 +159,8 @@ class CropAdvisorViewModel(
             RecommendationPriority.MAXIMUM_PROFIT ->
                 recommendations.sortedWith(
                     compareByDescending<CropRecommendation> {
-                        it.profitPerDay ?: Double.NEGATIVE_INFINITY
-                    }.thenBy { it.durationDays }
+                        it.estimatedNetProfitPerHa ?: Double.NEGATIVE_INFINITY
+                    }.thenBy { it.cropName }
                 )
         }
         return copy(visibleRecommendations = sorted)
