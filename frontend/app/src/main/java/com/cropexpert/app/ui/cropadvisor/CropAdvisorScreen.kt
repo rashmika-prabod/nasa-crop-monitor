@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -456,8 +457,9 @@ private fun CropRecommendationCard(
                 SciencePill(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Outlined.WaterDrop,
-                    label = "WATER VS PADDY",
-                    value = "${recommendation.waterRequirementVsPaddy ?: "Unquantified vs Paddy"} • ${recommendation.waterRequirement}"
+                    label = "WATER NEED",
+                    value = recommendation.waterRequirement,
+                    allowValueWrap = true
                 )
                 SciencePill(
                     modifier = Modifier.weight(0.75f),
@@ -466,13 +468,16 @@ private fun CropRecommendationCard(
                     value = "${recommendation.durationDays} days",
                     numericValue = true
                 )
-                SciencePill(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Outlined.Eco,
-                    label = "IMPACT",
-                    value = recommendation.suitabilityReason
-                )
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            SciencePill(
+                modifier = Modifier.fillMaxWidth(),
+                icon = Icons.Outlined.Eco,
+                label = "IMPACT",
+                value = recommendation.suitabilityReason,
+                fullWidth = true
+            )
 
             Spacer(modifier = Modifier.height(14.dp))
             Surface(
@@ -604,10 +609,16 @@ private fun SciencePill(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     value: String,
-    numericValue: Boolean = false
+    numericValue: Boolean = false,
+    fullWidth: Boolean = false,
+    allowValueWrap: Boolean = false
 ) {
     Surface(
-        modifier = modifier.height(72.dp),
+        modifier = when {
+            fullWidth -> modifier
+            allowValueWrap -> modifier.heightIn(min = 72.dp)
+            else -> modifier.height(72.dp)
+        },
         color = LightMint,
         shape = RoundedCornerShape(10.dp)
     ) {
@@ -631,8 +642,8 @@ private fun SciencePill(
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = if (numericValue) FontFamily.Monospace else FontFamily.SansSerif,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                maxLines = if (fullWidth || allowValueWrap) Int.MAX_VALUE else 2,
+                overflow = if (fullWidth || allowValueWrap) TextOverflow.Clip else TextOverflow.Ellipsis
             )
         }
     }
