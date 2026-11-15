@@ -35,15 +35,12 @@ fun buildRotationPlans(
         isBaseline = true,
         sequence = if (previousCrop.isBlank()) emptyList() else listOf(previousCrop, previousCrop)
     )
-    val topCandidates = climateCandidates.take(2)
-    val bridgeCrop = topCandidates.firstOrNull()
-    val alternativeBridgeCrop = topCandidates.getOrNull(1)
-    val longTermBridgeCrop = alternativeBridgeCrop ?: bridgeCrop
+    val bridgeCrop = climateCandidates.firstOrNull()
     val topPlan = RotationPlan(
         id = "short_term",
-        title = "Short-term · try a candidate crop",
+        title = "Next season · location-fit candidate",
         summary = bridgeCrop?.let {
-            "Use Crop Advisor's top climate-ranked candidate after last season's crop."
+            "Crop Advisor found this crop suitable for the current location and planting window. Nutrient recovery and rotation fit are not yet assessed, so this is not a rotation recommendation."
         } ?: "Run Crop Advisor to find a candidate crop for the next season.",
         crops = listOfNotNull(bridgeCrop),
         sequence = if (previousCrop.isBlank() || bridgeCrop == null) {
@@ -54,20 +51,10 @@ fun buildRotationPlans(
     )
     val diversePlan = RotationPlan(
         id = "return_to_previous",
-        title = "Longer-term · plan a return to the same crop",
-        summary = alternativeBridgeCrop?.let {
-            "Illustrative sequence with another Crop Advisor candidate; a second-season fit is not evaluated."
-        } ?: if (bridgeCrop == null) {
-            "Run Crop Advisor to explore a possible bridge crop before returning to the previous crop."
-        } else {
-            "Illustrative sequence using the top candidate; a second-season fit is not evaluated."
-        },
-        crops = listOfNotNull(longTermBridgeCrop),
-        sequence = if (previousCrop.isBlank() || longTermBridgeCrop == null) {
-            emptyList()
-        } else {
-            listOf(previousCrop, longTermBridgeCrop.cropName, previousCrop)
-        }
+        title = "Following seasons · plan after harvest",
+        summary = "Later-season crops are not projected yet. Reassess after recording the next crop, harvest, soil results, and nutrient inputs.",
+        crops = emptyList(),
+        sequence = emptyList()
     )
     return listOf(baseline, topPlan, diversePlan)
 }

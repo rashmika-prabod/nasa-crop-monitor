@@ -119,10 +119,7 @@ fun MainNavigation() {
                     profile = farmProfile,
                     advisorResponse = advisorResponse,
                     onEditProfile = { navController.navigate(Screen.MyFarm.route) },
-                    onOpenCropAdvisor = { navController.navigate(Screen.CropAdvisor.route) },
-                    onOpenPlan = { planId ->
-                        navController.navigate(Screen.PlanDetails.createRoute(planId))
-                    }
+                    onOpenCropAdvisor = { navController.navigate(Screen.CropAdvisor.route) }
                 )
             }
             composable(Screen.MyFarm.route) {

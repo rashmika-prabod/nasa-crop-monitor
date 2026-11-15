@@ -26,6 +26,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -219,15 +220,28 @@ fun MyFarmMapCard(
 @Composable
 fun SoilSamplesSection(
     samples: List<SoilSampleEntity>,
-    onDeleteSample: (Long) -> Unit
+    onDeleteSample: (Long) -> Unit,
+    onInfoClick: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Soil test points", color = ForestGreen, fontWeight = FontWeight.Bold)
-        Text(
-            "Saved tests are field notes. They are not yet used to score Crop Advisor recommendations.",
-            color = Color.Gray,
-            fontSize = 12.sp
-        )
+    Column(
+        modifier = Modifier.padding(top = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Soil test points", color = ForestGreen, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = onInfoClick) {
+                Text(
+                    text = "!",
+                    color = Color(0xFFB8BEC2),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
+        }
         if (samples.isEmpty()) {
             Text("No soil tests saved yet.", color = Color.Gray, fontSize = 13.sp)
         } else {
@@ -394,3 +408,4 @@ private fun parseSampleDate(value: String): Long? {
     val parsed = format.parse(value, position) ?: return null
     return parsed.time.takeIf { position.index == value.length && format.format(parsed) == value }
 }
+

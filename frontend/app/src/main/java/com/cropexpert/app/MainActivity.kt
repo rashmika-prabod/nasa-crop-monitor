@@ -240,9 +240,6 @@ class MainActivity : ComponentActivity() {
                                             selectedLongitude
                                         )
                                     )
-                                },
-                                onOpenPlan = { planId ->
-                                    navController.navigate(Screen.PlanDetails.createRoute(planId))
                                 }
                             )
                         }
