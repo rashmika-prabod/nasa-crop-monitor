@@ -34,6 +34,7 @@ CACHE_DIR  = Path(os.environ.get("ADVISOR_CACHE_DIR", "/tmp/crop-advisor-cache")
 START_YEAR = 1981            # CHIRPS rainfall starts in 1981
 TEST_MONTHS, VAL_MONTHS = 24, 24      # most recent 24 months = test; the 24 before = model selection
 FUTURE_MONTHS   = 24         # how far ahead to forecast (beyond the next planting month)
+ROTATION_PLANTING_WINDOW_MONTHS = 4
 LAPSE_C_PER_KM  = 6.0        # temperature drop per km of elevation (pin vs ~11 km weather cell)
 MIN_SUITABILITY = 0.40       # crops scoring below this are not recommended
 MAX_FIELD_VERTICES = 50
@@ -811,7 +812,7 @@ def _validated_field_boundary(field_boundary):
     return geometry, area_sqm / 10_000, cache_key
 
 
-def advisor_api_result(lat, lon, soil_ph=None, field_boundary=None):
+def advisor_api_result(lat, lon, soil_ph=None, field_boundary=None, rotation_window_months=None):
     field_geometry, field_area_ha, field_key = _validated_field_boundary(field_boundary)
     weather, location_static = get_location_data(
         lat,
@@ -849,17 +850,26 @@ def advisor_api_result(lat, lon, soil_ph=None, field_boundary=None):
         previous_crop=None,
         district=district,
         selection_metric="suitability",
+        n_start_months=(
+            12
+            if rotation_window_months is None
+            else rotation_window_months
+        ),
     )
-    profit_ranked = rank_crops(
-        future,
-        start_from,
-        static,
-        irrigated=False,
-        previous_crop=None,
-        district=district,
-        return_all=True,
-        selection_metric="profit_per_ha",
-    )
+    if rotation_window_months is None:
+        profit_ranked = rank_crops(
+            future,
+            start_from,
+            static,
+            irrigated=False,
+            previous_crop=None,
+            district=district,
+            return_all=True,
+            selection_metric="profit_per_ha",
+        )
+        ranked_modes = (("climate", climate_ranked), ("profit", profit_ranked))
+    else:
+        ranked_modes = (("rotation", climate_ranked),)
     backtest = recommendation_backtest(results, static, irrigated=False, district=district)
     correlation = _api_number(backtest.get("suitability_rank_corr")) if backtest else None
     top_five_overlap = int(backtest["top5_overlap"]) if backtest else None
@@ -872,7 +882,7 @@ def advisor_api_result(lat, lon, soil_ph=None, field_boundary=None):
         mae_parts.append(f"Temp MAE {temp_mae:.1f} C")
 
     recommendations = []
-    for ranking_mode, ranked in (("climate", climate_ranked), ("profit", profit_ranked)):
+    for ranking_mode, ranked in ranked_modes:
         for _, row in ranked.iterrows():
             if pd.isna(row["net_return_lkr_ha"]):
                 continue
@@ -885,6 +895,7 @@ def advisor_api_result(lat, lon, soil_ph=None, field_boundary=None):
                 "rankingMode": ranking_mode,
                 "cropId": str(row["crop_id"]),
                 "cropName": str(row["crop"]),
+                "cropFamily": str(crop["crop_family"]),
                 "localName": None,
                 "category": _crop_category(crop["crop_group"]),
                 "suitabilityScore": int(round(float(row["suitability"]) * 100)),
@@ -917,6 +928,7 @@ def advisor_api_result(lat, lon, soil_ph=None, field_boundary=None):
         "district": district or "Unavailable",
         "agroZone": "Unavailable",
         "plantingWindow": start_from.strftime("%b %Y"),
+        "plantingWindowMonths": rotation_window_months,
         "rainfallMaeMm": rain_mae,
         "rainfallSkillVsClimatology": _api_number(results["rain_mm"]["skill_vs_climatology"]),
         "rainfallModel": str(results["rain_mm"]["model"]),
@@ -952,6 +964,15 @@ def recommend_crops_endpoint(
     lon: float = Query(..., ge=-180, le=180),
     soil_ph: float | None = Query(None, ge=0, le=14),
     field_boundary: str | None = Query(None, max_length=10_000),
+    rotation_window_months: int | None = Query(
+        None,
+        ge=1,
+        le=ROTATION_PLANTING_WINDOW_MONTHS,
+        description=(
+            "When set, return only climate-ranked crops plantable within this many upcoming "
+            "monthly windows; each crop is still evaluated across its full growing cycle."
+        ),
+    ),
     api_key: str = Header(..., alias="X-API-Key"),
 ):
     require_crop_advisor_key(api_key)
@@ -961,6 +982,7 @@ def recommend_crops_endpoint(
             lon,
             soil_ph=soil_ph,
             field_boundary=field_boundary,
+            rotation_window_months=rotation_window_months,
         )
     except HTTPException:
         raise

@@ -1,6 +1,7 @@
 package com.cropexpert.app.ui.rotation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,7 +13,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -29,6 +32,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -60,6 +64,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.PopupProperties
 import com.cropexpert.app.data.local.FarmEntity
 import com.cropexpert.app.data.local.SoilSampleEntity
+import com.cropexpert.app.data.api.NetworkConfig
+import com.cropexpert.app.data.repository.CropAdvisorRepository
+import com.cropexpert.app.BuildConfig
 import com.cropexpert.app.domain.model.CropRecommendation
 import com.cropexpert.app.domain.model.CropRecommendationResponse
 import com.cropexpert.app.domain.model.FarmProfile
@@ -68,6 +75,7 @@ import com.cropexpert.app.domain.model.RotationPlan
 import com.cropexpert.app.domain.model.buildRotationPlans
 import com.cropexpert.app.domain.model.farmPriorities
 import com.cropexpert.app.domain.model.lastSeasonCropValue
+import com.cropexpert.app.domain.model.rankRotationCandidates
 import com.cropexpert.app.domain.model.soilPHValue
 import com.cropexpert.app.ui.theme.ForestGreen
 import com.cropexpert.app.ui.theme.LightMint
@@ -78,7 +86,11 @@ import com.cropexpert.app.ui.farm.SoilSamplesSection
 import com.cropexpert.app.ui.location.isInsideBoundary
 import com.cropexpert.app.ui.location.parseBoundaryJson
 import com.google.android.gms.maps.model.LatLng
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.text.NumberFormat
+import java.util.Locale
+import kotlinx.coroutines.CancellationException
 
 val FarmProfileSaver = Saver<FarmProfile, List<String>>(
     save = { profile ->
@@ -433,20 +445,94 @@ fun RotationPlansScreen(
     profile: FarmProfile,
     advisorResponse: CropRecommendationResponse?,
     onEditProfile: () -> Unit,
-    onOpenCropAdvisor: () -> Unit
+    onOpenCropAdvisor: () -> Unit,
+    latitude: Double? = null,
+    longitude: Double? = null,
+    fieldBoundary: String? = null,
+    recommendationBaseUrl: String = NetworkConfig.BASE_URL,
+    cropAdvisorApiKey: String = BuildConfig.CROP_ADVISOR_API_KEY,
+    loadRecommendationsOnOpen: Boolean = false
 ) {
     var consideredCropId by rememberSaveable(advisorResponse) { mutableStateOf<String?>(null) }
-    val climateCandidates = remember(advisorResponse) {
-        advisorResponse?.recommendations.orEmpty()
-            .filter { it.rankingMode.equals("climate", ignoreCase = true) }
-            .distinctBy { it.cropId ?: it.cropName }
-            .sortedWith(
-                compareByDescending<com.cropexpert.app.domain.model.CropRecommendation> {
-                    it.suitabilityScore
-                }.thenBy { it.rank }
-            )
+    var alternativesExpanded by rememberSaveable(advisorResponse) { mutableStateOf(false) }
+    var whyExpanded by rememberSaveable(advisorResponse) { mutableStateOf(false) }
+    var limitsExpanded by rememberSaveable(advisorResponse) { mutableStateOf(false) }
+    var displayedResponse by remember(advisorResponse, loadRecommendationsOnOpen) {
+        mutableStateOf(advisorResponse.takeUnless { loadRecommendationsOnOpen })
     }
+    var recommendationLoading by remember { mutableStateOf(false) }
+    var recommendationError by remember { mutableStateOf<String?>(null) }
+    var requestGeneration by remember { mutableStateOf(0) }
+    val cropAdvisorRepository = remember { CropAdvisorRepository() }
+    LaunchedEffect(advisorResponse, loadRecommendationsOnOpen) {
+        if (!loadRecommendationsOnOpen) displayedResponse = advisorResponse
+    }
+    LaunchedEffect(
+        loadRecommendationsOnOpen,
+        latitude,
+        longitude,
+        fieldBoundary,
+        profile.soilPH,
+        recommendationBaseUrl,
+        cropAdvisorApiKey,
+        requestGeneration
+    ) {
+        if (!loadRecommendationsOnOpen && requestGeneration == 0) return@LaunchedEffect
+        if (loadRecommendationsOnOpen) displayedResponse = null
+        if (latitude == null || longitude == null) {
+            recommendationError = "Add your farm location before loading crop plans."
+            return@LaunchedEffect
+        }
+        if (recommendationBaseUrl.isBlank() || cropAdvisorApiKey.isBlank()) {
+            recommendationError = "Crop recommendations are not configured in this app build."
+            return@LaunchedEffect
+        }
+        recommendationLoading = true
+        recommendationError = null
+        try {
+            displayedResponse = cropAdvisorRepository.getRecommendations(
+                latitude = latitude,
+                longitude = longitude,
+                soilPH = profile.soilPHValue(),
+                fieldBoundary = fieldBoundary,
+                baseUrl = recommendationBaseUrl,
+                apiKey = cropAdvisorApiKey,
+                rotationWindowMonths = if (loadRecommendationsOnOpen) 4 else null
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            recommendationError = error.localizedMessage
+                ?: "Could not load crop recommendations. Please try again."
+        } finally {
+            recommendationLoading = false
+        }
+    }
+    val eligibleClimateCandidates = remember(profile, displayedResponse) {
+        val recommendations = displayedResponse?.recommendations.orEmpty()
+        val hasRotationCandidates = recommendations.any {
+            it.rankingMode.equals("rotation", ignoreCase = true)
+        }
+        recommendations
+            .filter {
+                if (hasRotationCandidates) {
+                    it.rankingMode.equals("rotation", ignoreCase = true)
+                } else {
+                    it.rankingMode.equals("climate", ignoreCase = true)
+                }
+            }
+            .distinctBy { it.cropId ?: it.cropName }
+    }
+    val climateCandidates = remember(profile, eligibleClimateCandidates) {
+        rankRotationCandidates(profile, eligibleClimateCandidates)
+    }
+    val plans = remember(profile, eligibleClimateCandidates) {
+        buildRotationPlans(profile, eligibleClimateCandidates)
+    }
+    val nextSeasonPlan = plans.firstOrNull { it.id == "short_term" }
+    val laterSeasonPlan = plans.firstOrNull { it.id == "return_to_previous" }
     val previousCrop = profile.lastSeasonCropValue()
+    val featuredCandidate = nextSeasonPlan?.crops?.firstOrNull()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -458,89 +544,146 @@ fun RotationPlansScreen(
         ScreenHeader(
             eyebrow = "YOUR FIELD",
             title = "Crop rotation",
-            subtitle = "Find a suitable next crop."
+            subtitle = "Climate-screened crops you can plant within the next ${displayedResponse?.plantingWindowMonths ?: 4} months."
         )
         RotationContextCard(
             previousCrop = previousCrop,
-            district = advisorResponse?.district,
-            agroZone = advisorResponse?.agroZone
+            district = displayedResponse?.district,
+            agroZone = displayedResponse?.agroZone
         )
-
-        SectionHeading(title = "Next season")
-        RotationReadinessNote()
         when {
-            advisorResponse == null -> RotationEmptyCard(
-                title = "Get local crop candidates",
-                body = "Run Crop Advisor to see crops screened for your field's location and current planting window."
+            displayedResponse == null && recommendationLoading -> RotationLoadingCard()
+            displayedResponse == null && recommendationError != null -> RotationEmptyCard(
+                title = "Could not load crop plans",
+                body = recommendationError.orEmpty()
+            )
+            displayedResponse == null -> RotationEmptyCard(
+                title = "Find your next crop",
+                body = "Load crop options screened for your field and planting window."
             )
             climateCandidates.isEmpty() -> RotationEmptyCard(
-                title = "No climate candidates available",
-                body = "Refresh Crop Advisor or review your field location and planting conditions. No crop is being substituted."
+                title = "No suitable crops found",
+                body = "Refresh Crop Advisor or review your field location. No substitute crop is shown."
             )
-            else -> climateCandidates.take(3).forEachIndexed { index, candidate ->
-                val candidateId = candidate.cropId ?: candidate.cropName
-                RotationCandidateCard(
-                    candidate = candidate,
-                    isTopFit = index == 0,
-                    isConsidered = consideredCropId == candidateId,
-                    onConsider = {
-                        consideredCropId = if (consideredCropId == candidateId) null else candidateId
-                    }
+            featuredCandidate != null -> RotationCandidateCard(
+                candidate = featuredCandidate,
+                isConsidered = consideredCropId == (featuredCandidate.cropId ?: featuredCandidate.cropName),
+                selectionReason = nextSeasonPlan.selectionReason,
+                showDetails = whyExpanded,
+                onToggleDetails = { whyExpanded = !whyExpanded },
+                onConsider = {
+                    val candidateId = featuredCandidate.cropId ?: featuredCandidate.cropName
+                    consideredCropId =
+                        if (consideredCropId == candidateId) null else candidateId
+                }
+            )
+        }
+        RotationRoadmapCard(
+            nextSeasonPlan = nextSeasonPlan,
+            laterSeasonPlan = laterSeasonPlan
+        )
+        val visibleOptions = climateCandidates.take(3)
+        if (visibleOptions.size > 1) {
+            TextButton(
+                onClick = { alternativesExpanded = !alternativesExpanded },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    if (alternativesExpanded) "Hide other options" else "Other options (${visibleOptions.size - 1})",
+                    color = ForestGreen,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Icon(
+                    if (alternativesExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = ForestGreen
                 )
             }
+            if (alternativesExpanded) {
+                visibleOptions.drop(1).forEach { candidate ->
+                    RotationAlternativeRow(
+                        candidate = candidate,
+                        isConsidered = consideredCropId == (candidate.cropId ?: candidate.cropName),
+                        onConsider = {
+                            val candidateId = candidate.cropId ?: candidate.cropName
+                            consideredCropId =
+                                if (consideredCropId == candidateId) null else candidateId
+                        }
+                    )
+                }
+            }
         }
-
         consideredCropId?.let { selectedId ->
             climateCandidates.firstOrNull { (it.cropId ?: it.cropName) == selectedId }?.let {
                 Text(
-                    "Considering ${it.cropName} · rotation fit not checked",
+                    "Considering ${it.cropName}; this does not change the suggested plan.",
                     color = ForestGreen,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold
                 )
             }
         }
-        OutlinedButton(onClick = onEditProfile, modifier = Modifier.fillMaxWidth()) {
-            Text("Edit farm details", color = ForestGreen)
+        RotationPlanLimits(
+            response = displayedResponse,
+            expanded = limitsExpanded,
+            onToggle = { limitsExpanded = !limitsExpanded }
+        )
+        TextButton(onClick = onEditProfile, modifier = Modifier.fillMaxWidth()) {
+            Text("Edit farm", color = ForestGreen)
         }
         Button(
-            onClick = onOpenCropAdvisor,
+            onClick = {
+                if (loadRecommendationsOnOpen) {
+                    recommendationError = null
+                    requestGeneration += 1
+                } else {
+                    onOpenCropAdvisor()
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
+            enabled = !recommendationLoading,
             colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)
         ) {
-            Text("Refresh crops", color = Color.White)
+            Text(
+                when {
+                    recommendationLoading -> "Loading crops…"
+                    displayedResponse == null && recommendationError != null -> "Retry"
+                    displayedResponse == null -> "Find crops"
+                    else -> "Refresh crops"
+                },
+                color = Color.White
+            )
+        }
+        if (loadRecommendationsOnOpen) {
+            TextButton(onClick = onOpenCropAdvisor, modifier = Modifier.fillMaxWidth()) {
+                Text("Open Crop Advisor", color = ForestGreen)
+            }
         }
     }
 }
 
 @Composable
-private fun RotationContextCard(
-    previousCrop: String,
-    district: String?,
-    agroZone: String?
-) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+private fun RotationLoadingCard() {
+    Surface(color = Color.White, shape = RoundedCornerShape(16.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                "Last crop · ${previousCrop.ifBlank { "not added" }}",
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
                 color = ForestGreen,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                strokeWidth = 2.dp
             )
-            val location = listOfNotNull(
-                district?.takeIf { it.isNotBlank() && !it.equals("Unavailable", true) },
-                agroZone?.takeIf { it.isNotBlank() && !it.equals("Unavailable", true) }
-            ).joinToString(" · ")
-            if (location.isNotBlank()) {
-                Text(location, color = Color.Gray, fontSize = 11.sp, maxLines = 1)
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("Finding suitable crops", color = ForestGreen, fontWeight = FontWeight.Bold)
+                Text(
+                    "Checking your location and next planting window…",
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
             }
         }
     }
@@ -552,35 +695,147 @@ private fun SectionHeading(title: String) {
 }
 
 @Composable
-private fun RotationReadinessNote() {
-    Surface(color = Color(0xFFEAF4EC), shape = RoundedCornerShape(10.dp)) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
+private fun RotationContextCard(
+    previousCrop: String,
+    district: String?,
+    agroZone: String?
+) {
+    val location = listOfNotNull(
+        district?.takeIf { it.isNotBlank() && !it.equals("Unavailable", true) },
+        agroZone?.takeIf { it.isNotBlank() && !it.equals("Unavailable", true) }
+    ).joinToString(" · ")
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "After ${previousCrop.ifBlank { "last crop not set" }}",
+            color = Color.DarkGray,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        if (location.isNotBlank()) {
+            Text(
+                location,
+                color = Color.Gray,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun RotationRoadmapCard(
+    nextSeasonPlan: RotationPlan?,
+    laterSeasonPlan: RotationPlan?
+) {
+    val nextCrop = nextSeasonPlan?.crops?.firstOrNull()
+    val laterCrop = laterSeasonPlan?.crops?.firstOrNull()
+    Surface(
+        color = Color.White,
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            Icon(Icons.Default.Science, contentDescription = null, tint = ForestGreen, modifier = Modifier.size(16.dp))
-            Text("Rotation and soil checks pending", color = ForestGreen, fontSize = 11.sp)
+            if (nextCrop == null) {
+                Text(
+                    "After harvest",
+                    color = ForestGreen,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "Record the crop and refresh the plan for the following season.",
+                    color = Color.DarkGray,
+                    fontSize = 12.sp
+                )
+            } else {
+                RotationTimelineStep(
+                    marker = "1",
+                    title = nextCrop.cropName,
+                    subtitle = "Plant ${nextCrop.plantIn}",
+                    isLast = false
+                )
+                RotationTimelineStep(
+                    marker = "2",
+                    title = "Harvest & check in",
+                    subtitle = "Expected ${nextCrop.harvestBy} · record results and refresh",
+                    isLast = laterCrop == null
+                )
+                if (laterCrop != null) {
+                    RotationTimelineStep(
+                        marker = "3",
+                        title = laterCrop.cropName,
+                        subtitle = "Possible window ${laterCrop.plantIn} · confirm after harvest",
+                        isLast = true
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RotationTimelineStep(
+    marker: String,
+    title: String,
+    subtitle: String,
+    isLast: Boolean
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .background(LightMint, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(marker, color = ForestGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+            if (!isLast) {
+                Box(
+                    modifier = Modifier
+                        .width(2.dp)
+                        .height(22.dp)
+                        .background(Color(0xFFD8E9DC))
+                )
+            }
+        }
+        Column(modifier = Modifier.padding(top = 1.dp)) {
+            Text(title, color = ForestGreen, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = Color.Gray, fontSize = 11.sp)
         }
     }
 }
 
 @Composable
 private fun RotationCandidateCard(
-    candidate: com.cropexpert.app.domain.model.CropRecommendation,
-    isTopFit: Boolean,
+    candidate: CropRecommendation,
     isConsidered: Boolean,
+    selectionReason: String,
+    showDetails: Boolean,
+    onToggleDetails: () -> Unit,
     onConsider: () -> Unit
 ) {
-    var showDetails by remember(candidate.cropId ?: candidate.cropName) { mutableStateOf(false) }
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp)
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -589,114 +844,105 @@ private fun RotationCandidateCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        if (isTopFit) "TOP CLIMATE FIT" else "LOCAL CLIMATE FIT",
-                        color = ForestGreen,
+                        "NEXT SEASON",
+                        color = Color.Gray,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.8.sp
+                        letterSpacing = 1.sp
                     )
                     Text(
                         candidate.cropName,
                         color = ForestGreen,
-                        fontSize = 18.sp,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
                 StatusPill("${candidate.suitabilityScore}% climate fit", LightMint, ForestGreen)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                StatusPill(
-                    "${candidate.durationDays} days",
-                    Color(0xFFF2F3F4),
-                    Color.DarkGray
-                )
-                StatusPill(
-                    candidate.waterRequirement,
-                    Color(0xFFEAF4FF),
-                    Color(0xFF245A85)
-                )
-            }
-            Text(
-                "${candidate.plantIn} → ${candidate.harvestBy}",
-                color = Color.DarkGray,
-                fontSize = 12.sp
-            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = { showDetails = !showDetails }) {
-                    Text(if (showDetails) "Hide details" else "Why & risks")
-                    Icon(
-                        if (showDetails) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null
+                Column {
+                    Text("PLANTING WINDOW", color = Color.Gray, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "${candidate.plantIn} → ${candidate.harvestBy}",
+                        color = Color.DarkGray,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
-                OutlinedButton(onClick = onConsider) {
-                    Text(if (isConsidered) "Considering" else "Consider")
+                StatusPill(
+                    "${candidate.durationDays} days",
+                    Color(0xFFF2F3F4),
+                    Color.DarkGray
+                )
+            }
+            Text(
+                "Water need · ${candidate.waterRequirement}",
+                color = Color(0xFF245A85),
+                fontSize = 12.sp
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                onClick = onConsider,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)
+                ) {
+                Text(if (isConsidered) "Considering" else "Consider this crop", color = Color.White)
+                }
+                TextButton(onClick = onToggleDetails) {
+                Text(if (showDetails) "Less" else "Why?", color = ForestGreen)
+                Icon(
+                    if (showDetails) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = ForestGreen
+                )
                 }
             }
             if (showDetails) {
-                Text(
-                    "WHY IT FITS",
-                    color = ForestGreen,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.6.sp
-                )
+                if (selectionReason.isNotBlank()) {
+                    Text(
+                        selectionReason,
+                        color = Color.DarkGray,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
                 Text(
                     text = buildString {
-                        append("Crop Advisor · current location and planting window.")
+                        append(candidate.cropFamily?.let { "Family: $it. " }.orEmpty())
                         candidate.suitabilityReason
                             .takeIf(String::isNotBlank)
-                            ?.let { append(" $it") }
+                            ?.let(::append)
                     },
                     color = Color.DarkGray,
                     fontSize = 12.sp
-                )
-                Text(
-                    "RISKS TO KNOW",
-                    color = Color(0xFF805900),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.6.sp
                 )
                 val climateRisks = remember(candidate) { candidate.climateWatchItems() }
                 if (climateRisks.isEmpty()) {
                     Text(
                         if (candidate.hasClimateComparisonData()) {
-                            "No rainfall or temperature mismatch reported by Crop Advisor. Rotation, pest-break, and nutrient risks are not assessed yet."
+                            "No rainfall or temperature mismatch flagged."
                         } else {
-                            "Climate comparison data is incomplete. Rotation, pest-break, and nutrient risks are not assessed yet."
+                            "Some climate comparison data is missing."
                         },
-                        color = Color.DarkGray,
-                        fontSize = 12.sp
-                    )
-                } else {
-                    climateRisks.forEach { risk ->
-                        Text(
-                            "• $risk",
-                            color = Color.DarkGray,
-                            fontSize = 12.sp
-                        )
-                    }
-                    if (!candidate.hasClimateComparisonData()) {
-                        Text(
-                            "Some climate comparison data is incomplete.",
-                            color = Color.Gray,
-                            fontSize = 11.sp
-                        )
-                    }
-                    Text(
-                        "Rotation, pest-break, and nutrient risks are not assessed yet.",
                         color = Color.Gray,
                         fontSize = 11.sp
                     )
+                } else {
+                    climateRisks.forEach { risk ->
+                        Text(risk, color = Color(0xFF805900), fontSize = 11.sp)
+                    }
                 }
                 candidate.expectedProfit?.let { profit ->
                     Text(
-                        "Historical estimate: Rs ${NumberFormat.getNumberInstance().format(profit)} /ha · ${candidate.profitConfidence} confidence",
+                        "Past income estimate: Rs ${NumberFormat.getNumberInstance().format(profit)} /ha · ${candidate.profitConfidence} confidence",
                         color = Color.Gray,
                         fontSize = 11.sp
                     )
@@ -705,6 +951,100 @@ private fun RotationCandidateCard(
         }
     }
 }
+
+@Composable
+private fun RotationAlternativeRow(
+    candidate: CropRecommendation,
+    isConsidered: Boolean,
+    onConsider: () -> Unit
+) {
+    Surface(color = Color.White, shape = RoundedCornerShape(14.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(candidate.cropName, color = ForestGreen, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "${candidate.suitabilityScore}% fit · ${candidate.plantIn}",
+                    color = Color.Gray,
+                    fontSize = 11.sp
+                )
+            }
+            TextButton(onClick = onConsider) {
+                Text(if (isConsidered) "Considering" else "Consider", color = ForestGreen)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RotationPlanLimits(
+    response: CropRecommendationResponse?,
+    expanded: Boolean,
+    onToggle: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle),
+        color = Color(0xFFF3F5F3),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("About this plan", color = ForestGreen, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = ForestGreen
+                )
+            }
+            if (expanded) {
+                Text(
+                    "Planting dates are limited to the next ${response?.plantingWindowMonths ?: 4} forecast months, but climate fit is checked across each full crop cycle. Monthly projections are not daily forecasts or planting guarantees.",
+                    color = Color.DarkGray,
+                    fontSize = 11.sp
+                )
+                response?.let { forecast ->
+                    val rainfallError = forecast.rainfallMaeMm
+                        ?.takeIf(Double::isFinite)
+                        ?.let { "${formatRotationValue(it)} mm" }
+                        ?: "unavailable"
+                    val temperatureError = forecast.temperatureMaeC
+                        ?.takeIf(Double::isFinite)
+                        ?.let { "${formatRotationValue(it)} °C" }
+                        ?: "unavailable"
+                    Text(
+                        "Models selected on validation data: ${forecast.rainfallModel} rainfall, ${forecast.temperatureModel} temperature. Historical hold-out MAE: rainfall $rainfallError (${formatForecastSkill(forecast.rainfallSkillVsClimatology)} vs climatology); temperature $temperatureError (${formatForecastSkill(forecast.temperatureSkillVsClimatology)} vs climatology). Positive skill means lower error than climatology; historical scores do not guarantee future accuracy.",
+                        color = Color.DarkGray,
+                        fontSize = 11.sp
+                    )
+                }
+                Text(
+                    "Family diversity is a simple heuristic; nutrient recovery and pest-break effects are not modeled. Recheck after harvest.",
+                    color = Color.DarkGray,
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
+private fun formatForecastSkill(value: Double?): String =
+    value?.takeIf(Double::isFinite)?.let {
+        NumberFormat.getPercentInstance().format(it)
+    } ?: "unavailable"
 
 private fun CropRecommendation.climateWatchItems(): List<String> = buildList {
     if (forecastRainMm.isFinite() && idealRainMinMm.isFinite() &&
@@ -782,7 +1122,7 @@ fun RotationPlanDetailScreen(
         "How candidates were chosen" to plan.summary,
         "Sequence" to if (plan.sequence.isEmpty()) {
             if (plan.id == "return_to_previous") {
-                "A later-season sequence will be generated after the rotation model evaluates updated farm data."
+                "After harvest, record the crop and refresh Crop Advisor. A later crop is shown only when its forecast planting window follows this harvest."
             } else {
                 "Select last season's crop and get Crop Advisor results to complete this candidate sequence."
             }
@@ -790,15 +1130,15 @@ fun RotationPlanDetailScreen(
             plan.sequence.joinToString(" → ")
         },
         "Nutrient effects" to "Not assessed yet. Crop nutrient and residue-trait data are not connected; no nitrogen restoration is claimed.",
-        "Important limitation" to "Crop Advisor screens candidate B for the next forecast window only. Crop A's return-season fit, crop-family breaks, pest cycles, and calendar compatibility are not validated."
+        "Important limitation" to "The family check is an exact-name, immediate-last-crop diversity heuristic only. Pest cycles, nutrient effects, and a complete multi-season rotation are not validated."
     )
     val details = if (plan.isBaseline) baselineDetails else alternativeDetails
     val title = plan.title
     val candidates = plan.crops
     val statusText = when {
         plan.isBaseline -> "Comparison baseline"
-        plan.id == "short_term" -> "Location-fit candidate · rotation not checked"
-        else -> "Later seasons · model pending"
+        plan.id == "short_term" -> "Provisional · climate screen + family heuristic"
+        else -> "Conditional · reassess after harvest"
     }
     Column(
         modifier = Modifier
@@ -923,6 +1263,7 @@ private fun CandidateDetail(candidate: com.cropexpert.app.domain.model.CropRecom
         "Why ${candidate.cropName} fits",
         buildString {
             append("Crop Advisor · climate fit ${candidate.suitabilityScore}% · ${candidate.plantIn} to ${candidate.harvestBy} · ${candidate.durationDays} days. ")
+            candidate.cropFamily?.takeIf(String::isNotBlank)?.let { append("Crop family: $it. ") }
             candidate.suitabilityReason.takeIf(String::isNotBlank)?.let { append("$it ") }
             candidate.expectedProfit?.let {
                 append("Historical risk-adjusted estimate: Rs ${NumberFormat.getNumberInstance().format(it)} /ha. ")
@@ -1220,17 +1561,98 @@ private fun RotationPlansScreenPreview() {
     MaterialTheme(typography = Typography) {
         RotationPlansScreen(
             profile = FarmProfile(
-                lastSeasonCrop = "Rice",
+                lastSeasonCrop = "Maize",
                 harvestLevel = "Average",
                 residueManagement = "Mostly left",
                 priorities = listOf("Conserve water", "Soil health")
             ),
-            advisorResponse = null,
+            advisorResponse = rotationPreviewResponse(),
             onEditProfile = {},
             onOpenCropAdvisor = {}
         )
     }
 }
+
+private fun rotationPreviewResponse() = CropRecommendationResponse(
+    district = "Anuradhapura",
+    agroZone = "DL1b",
+    plantingWindow = "Dec 2026",
+    rainfallMaeMm = 38.0,
+    rainfallSkillVsClimatology = null,
+    rainfallModel = "recent_climatology",
+    temperatureMaeC = 0.8,
+    temperatureSkillVsClimatology = null,
+    temperatureModel = "holt_winters",
+    suitabilityRankCorrelation = null,
+    topFiveOverlap = null,
+    recommendations = listOf(
+        rotationPreviewCandidate(
+            name = "Green Gram",
+            family = "Fabaceae",
+            score = 92,
+            rank = 1,
+            plantIn = "Dec 2026",
+            harvestBy = "Mar 2027",
+            waterNeed = "Low to moderate"
+        ),
+        rotationPreviewCandidate(
+            name = "Cowpea",
+            family = "Fabaceae",
+            score = 88,
+            rank = 2,
+            plantIn = "Jan 2027",
+            harvestBy = "Apr 2027",
+            waterNeed = "Low to moderate"
+        ),
+        rotationPreviewCandidate(
+            name = "Cabbage",
+            family = "Brassicaceae",
+            score = 81,
+            rank = 3,
+            plantIn = "Jun 2027",
+            harvestBy = "Sep 2027",
+            waterNeed = "Moderate"
+        )
+    )
+)
+
+private fun rotationPreviewCandidate(
+    name: String,
+    family: String,
+    score: Int,
+    rank: Int,
+    plantIn: String,
+    harvestBy: String,
+    waterNeed: String
+) = CropRecommendation(
+    cropName = name,
+    localName = null,
+    category = "Legumes",
+    suitabilityScore = score,
+    expectedProfit = 185_000.0,
+    profitBasis = "District observed, 2024",
+    profitConfidence = "medium",
+    confidenceLevel = null,
+    imageUrl = null,
+    waterRequirement = waterNeed,
+    waterRequirementVsPaddy = null,
+    durationDays = 85,
+    suitabilityReason = "Forecast conditions are within the preferred climate range.",
+    plantIn = plantIn,
+    harvestBy = harvestBy,
+    forecastRainMm = 420.0,
+    idealRainMinMm = 350.0,
+    idealRainMaxMm = 650.0,
+    forecastTemperatureC = 27.0,
+    idealTemperatureMinC = 25.0,
+    idealTemperatureMaxC = 32.0,
+    rank = rank,
+    suitabilityRankCorrelation = null,
+    topFiveOverlap = null,
+    netProfitPerHa = 185_000.0,
+    cropId = name.lowercase().replace(" ", "_"),
+    cropFamily = family
+)
 
 @Preview(showBackground = true, backgroundColor = 0xFFF1FAF3, heightDp = 1000)
 @Composable

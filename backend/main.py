@@ -325,7 +325,13 @@ def _numeric_series(values) -> List[float]:
 def _format_sample(value, formatter) -> str:
     if value is None:
         return "Unavailable"
-    return formatter(value)
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return "Unavailable"
+    if not math.isfinite(numeric_value):
+        return "Unavailable"
+    return formatter(numeric_value)
 
 
 @app.get("/location-profile", response_model=LocationProfileResponse)

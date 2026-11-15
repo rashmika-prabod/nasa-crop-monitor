@@ -9,6 +9,13 @@ from main import TerrainCoordinate, _validate_terrain_boundary
 
 
 class FarmTerrainBoundaryTests(unittest.TestCase):
+    def test_formats_finite_observation(self):
+        self.assertEqual(main._format_sample(0.25, lambda value: f"{value * 100:.0f}%"), "25%")
+
+    def test_marks_invalid_observation_unavailable(self):
+        for value in (None, float("nan"), float("inf"), "not-a-number"):
+            self.assertEqual(main._format_sample(value, str), "Unavailable")
+
     def test_accepts_small_valid_field(self):
         points = [
             TerrainCoordinate(lat=6.0, lon=80.0),

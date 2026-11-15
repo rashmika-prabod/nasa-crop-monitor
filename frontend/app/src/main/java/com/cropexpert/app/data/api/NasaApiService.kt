@@ -30,7 +30,8 @@ interface NasaApiService {
         @Query("lon") lon: Double,
         @Query("soil_ph") soilPH: Double?,
         @Query("field_boundary") fieldBoundary: String?,
-        @Header("X-API-Key") apiKey: String
+        @Header("X-API-Key") apiKey: String,
+        @Query("rotation_window_months") rotationWindowMonths: Int? = null
     ): CropRecommendationResponse
 
     @POST("farm-terrain")

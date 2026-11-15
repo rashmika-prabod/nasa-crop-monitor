@@ -147,11 +147,7 @@ fun HomeDashboardScreen(
                             ProfileRow(label = "DISTRICT", value = telemetry.district)
                             ProfileRow(label = "AGRO-ECOLOGICAL ZONE", value = telemetry.zone)
                             ProfileRow(label = "ELEVATION", value = telemetry.elevation)
-                            Text(
-                                "Zone boundaries are not connected; classification is not guessed.",
-                                color = Color.White.copy(alpha = 0.7f),
-                                fontSize = 10.sp
-                            )
+
 
                             Spacer(modifier = Modifier.weight(1f))
 

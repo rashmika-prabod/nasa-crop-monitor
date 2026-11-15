@@ -233,6 +233,10 @@ class MainActivity : ComponentActivity() {
                                 profile = farmProfile,
                                 advisorResponse = advisorResponse,
                                 onEditProfile = { navController.navigate(Screen.MyFarm.route) },
+                                latitude = selectedLatitude,
+                                longitude = selectedLongitude,
+                                fieldBoundary = farmEntity?.boundaryJson,
+                                loadRecommendationsOnOpen = true,
                                 onOpenCropAdvisor = {
                                     navController.navigate(
                                         Screen.CropAdvisor.createRoute(

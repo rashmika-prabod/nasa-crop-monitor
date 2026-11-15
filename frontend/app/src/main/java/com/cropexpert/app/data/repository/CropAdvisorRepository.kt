@@ -10,9 +10,10 @@ class CropAdvisorRepository {
         soilPH: Double?,
         fieldBoundary: String?,
         baseUrl: String,
-        apiKey: String
+        apiKey: String,
+        rotationWindowMonths: Int? = null
     ): CropRecommendationResponse =
         RetrofitClient.createApi(baseUrl).getCropRecommendations(
-            latitude, longitude, soilPH, fieldBoundary, apiKey
+            latitude, longitude, soilPH, fieldBoundary, apiKey, rotationWindowMonths
         )
 }

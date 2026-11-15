@@ -215,8 +215,18 @@ not automatically update Render; port desired model changes into
 The Crop Advisor offers two ranking modes. **Climate Resilience** ranks
 eligible crops by their suitability across the forecast crop cycle, selecting
 the best planting window. **Maximum Profit** ranks crops by historical
-risk-unadjusted net return per hectare per crop day and does not filter by
-climate suitability. These are historical estimates, not guaranteed returns.
+risk-unadjusted net return per hectare and does not filter by climate
+suitability. These are historical estimates, not guaranteed returns.
+
+Rotation Plans requests `/recommend-crops` with `rotation_window_months=4`.
+This limits candidate planting dates to the next four monthly windows; each
+crop is still screened against forecast rainfall and temperature across its
+full growing cycle. Crops are omitted when that cycle extends beyond available
+forecast coverage. The endpoint keeps the same monthly forecast models and
+validation/performance metadata used by Crop Advisor; this does not make
+monthly estimates into daily weather predictions or guarantee planting
+outcomes. Requests without `rotation_window_months` keep the existing Crop
+Advisor planting-window and ranking behavior.
 
 Crop photos are served from Cloudinary and cached on the device. The image
 banner and Cloudinary derivative use a consistent 16:9 aspect ratio. By default,
@@ -229,15 +239,34 @@ banner, filling extra space with an automatically selected background color.
 No Cloudinary API secret is needed. When an image is unavailable, the app shows
 a crop-name placeholder.
 
-## Rotation planning prototype
+## Rotation planning fallback
 
-The app's Rotation Plans screen compares a farmer-reported baseline with two
-Crop Advisor-generated candidate sets. Both candidate sequences use the highest
-climate-ranked recommendations; the second sequence is illustrative and does
-not enforce crop-category diversity. The prototype does not validate
-crop-family breaks, pest-cycle interruption, or whether successive candidate
-planting windows form a feasible multi-season rotation. Treat these as
-candidates to review, not planting recommendations.
+The app's Rotation Plans screen uses Crop Advisor's climate-screened candidates
+as the eligibility set. When the farmer's last crop can be matched exactly to
+one of those crops and family data is available, the fallback prefers a
+candidate from a different crop family, then ranks by climate fit. Income and
+water priorities are tie-breakers only when climate-fit scores are equal.
+Unknown crop/family data or an unavailable alternative is shown as such rather
+than silently treated as a family break. This immediate-family diversity rule
+is a transparent heuristic, not validated agronomic guidance; it does not
+assess pest cycles, nutrient effects, or whole-season compatibility.
+The app remains compatible with older backend responses, but family-based
+ordering requires the updated `/recommend-crops` response to include
+`cropFamily`; redeploy or restart the backend before a demo to enable that
+check.
+Opening Rotation Plans from the main app loads recommendations directly using
+the saved farm location, field boundary, soil pH, backend URL, and Crop Advisor
+API key. A failed request remains visible with a retry action; the separate
+Crop Advisor screen remains available for the full ranking interface.
+
+The short-term candidate shows Crop Advisor's planting and harvest window. A
+following-season crop is shown only when its current Crop Advisor planting
+window is after the selected harvest month; otherwise the farmer is prompted
+to record the harvest and rerun the analysis. It is not a fixed multi-year
+sequence. Crop water-need categories are shown as general crop information;
+they are not derived from current field moisture. The Rotation screen does not
+use NASA SMAP moisture to select or rank candidates, so it does not fetch or
+display that unrelated regional signal.
 
 Farm history, soil-test results, water access, constraints, and priorities are
 optional. A farmer-provided soil pH is passed to the Crop Advisor API and can

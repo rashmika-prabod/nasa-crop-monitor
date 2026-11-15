@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.cropexpert.app.BuildConfig
+import com.cropexpert.app.data.api.NetworkConfig
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -119,7 +121,12 @@ fun MainNavigation() {
                     profile = farmProfile,
                     advisorResponse = advisorResponse,
                     onEditProfile = { navController.navigate(Screen.MyFarm.route) },
-                    onOpenCropAdvisor = { navController.navigate(Screen.CropAdvisor.route) }
+                    onOpenCropAdvisor = { navController.navigate(Screen.CropAdvisor.route) },
+                    latitude = 7.8731,
+                    longitude = 80.7718,
+                    recommendationBaseUrl = NetworkConfig.BASE_URL,
+                    cropAdvisorApiKey = BuildConfig.CROP_ADVISOR_API_KEY,
+                    loadRecommendationsOnOpen = true
                 )
             }
             composable(Screen.MyFarm.route) {

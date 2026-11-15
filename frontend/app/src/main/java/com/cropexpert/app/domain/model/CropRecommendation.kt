@@ -18,7 +18,8 @@ data class CropRecommendationResponse(
     val soilPHSource: String? = null,
     val recommendations: List<CropRecommendation> = emptyList(),
     val fieldAreaHa: Double? = null,
-    val samplingBasis: String? = null
+    val samplingBasis: String? = null,
+    val plantingWindowMonths: Int? = null
 )
 
 data class CropRecommendation(
@@ -50,7 +51,8 @@ data class CropRecommendation(
     val rankingMode: String = "climate",
     val profitPerDay: Double? = null,
     val netProfitPerHa: Double? = null,
-    val cropId: String? = null
+    val cropId: String? = null,
+    val cropFamily: String? = null
 ) {
     val estimatedNetProfitPerHa: Double?
         get() = netProfitPerHa?.takeIf(Double::isFinite)
