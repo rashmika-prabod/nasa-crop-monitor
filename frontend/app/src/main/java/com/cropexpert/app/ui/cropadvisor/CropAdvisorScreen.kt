@@ -299,66 +299,8 @@ private fun ContextHeader(response: CropRecommendationResponse) {
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Black
                 )
-                response.fieldAreaHa?.let { area ->
-                    Text(
-                        text = "FIELD-AREA SAMPLE  ${area.format(2)} ha · ${response.samplingBasis.orEmpty()}",
-                        color = Color.White.copy(alpha = 0.82f),
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    MaeMetric(
-                        label = "RAIN MAE",
-                        value = response.rainfallMaeMm?.let { "${it.format(0)} mm" } ?: "N/A",
-                        modifier = Modifier.weight(1f)
-                    )
-                    MaeMetric(
-                        label = "TOURNAMENT SKILL",
-                        value = response.rainfallSkillVsClimatology?.let {
-                            "${(it * 100).format(0)}% vs baseline"
-                        } ?: "N/A",
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Text(
-                    text = "Selected: ${response.rainfallModel} rain • ${response.temperatureModel} temperature",
-                    color = Color.White.copy(alpha = 0.78f),
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-                response.suitabilityRankCorrelation?.let { correlation ->
-                    Text(
-                        text = "Backtest Spearman ${correlation.format(2)} • top-five overlap ${response.topFiveOverlap ?: 0}/5",
-                        color = Color.White.copy(alpha = 0.78f),
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
             }
         }
-    }
-}
-
-@Composable
-private fun MaeMetric(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier) {
-        Text(
-            text = label,
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = value,
-            color = Color.White,
-            fontSize = 13.sp,
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Black,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }
 
