@@ -30,12 +30,6 @@ strategies and make more informed decisions as conditions change.
   climate data into a mobile interface instead of requiring farmers to
   interpret raw datasets themselves.
 
-The app is a prototype decision aid, not a substitute for local agronomic
-advice. Data resolution and coverage vary, and recommendations or economic
-estimates are not guarantees. The current crop and economics data are focused
-on the Uma Oya / Sri Lankan prototype and should not be assumed to apply
-globally.
-
 ## Features
 
 - Android app for farm setup, field mapping, crop advice, and rotation planning.
@@ -59,13 +53,15 @@ For detailed deployment and demo instructions, see
 | NASA SRTM | USGS SRTM GL1 elevation data, accessed through Earth Engine, supports elevation profiles and field terrain visualization. |
 | Other Earth Engine datasets | The current backend uses sources including CHIRPS rainfall, ERA5-Land weather, SoilGrids soil pH, and WaPOR evapotranspiration. |
 
-NASA POWER data is gridded and represents surrounding conditions rather than
-measurements at an individual field. SRTM elevation is approximately 30 m
-resolution and is not a survey-grade field elevation product.
+### AI-assisted development tools
+
+- ChatGPT
+- Claude
+- Gemini
 
 ## Android APK
 
-**APK download:** 
+**Install App(apk):** https://drive.google.com/drive/folders/1CBBTgwZkPvXeO4sTx4_84sHHvBT4iKqs?usp=drive_link
 
 ## Future work: machine-learning analysis
 
@@ -77,7 +73,7 @@ experiments. Future work can investigate lighter-weight models, efficient
 training strategies, and access to suitable compute resources, while validating
 results with local agricultural data.
 
-See the
+link: 
 [machine-learning future-work analysis](https://drive.google.com/file/d/16IfSxgktz7HJwzQqDi5aSsEWFL1S747M/view?usp=sharing).
 
 ## Contributors
