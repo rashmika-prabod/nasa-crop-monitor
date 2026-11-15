@@ -39,9 +39,6 @@ strategies and make more informed decisions as conditions change.
 - Local storage for a farm profile and soil-test records.
 - Backend APIs for crop recommendations, location profiles, and field terrain.
 
-For detailed deployment and demo instructions, see
-[frontend/README.md](frontend/README.md).
-
 ## Languages, tools, and data sources
 
 | Category | Technologies |
