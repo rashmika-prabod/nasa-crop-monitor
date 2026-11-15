@@ -1,4 +1,4 @@
-# NASA Crop Monitor
+# Crop Advisor
 
 NASA Crop Monitor is an Android decision-support prototype that helps farmers
 explore crop choices and rotation strategies using farm context, climate
