@@ -1,0 +1,161 @@
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.kapt")
+    id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
+}
+
+def backendBaseUrl = providers.gradleProperty("BACKEND_BASE_URL")
+        .orElse(providers.environmentVariable("BACKEND_BASE_URL"))
+        .getOrElse("https://nasa-crop-monitor.onrender.com/")
+def demoLanHost = providers.gradleProperty("DEMO_LAN_HOST")
+        .orElse(providers.environmentVariable("DEMO_LAN_HOST"))
+        .getOrElse("")
+def demoWifiBaseUrl = demoLanHost.trim().isEmpty()
+        ? "http://192.168.1.100:8000/"
+        : "http://${demoLanHost.trim()}:8000/"
+def demoUsbBaseUrl = "http://127.0.0.1:8000/"
+def cropAdvisorApiKey = providers.gradleProperty("CROP_ADVISOR_API_KEY")
+        .orElse(providers.environmentVariable("CROP_ADVISOR_API_KEY"))
+        .getOrElse("")
+def validateApiKey = { String buildType ->
+    if (cropAdvisorApiKey.trim().isEmpty()) {
+        throw new GradleException(
+                "${buildType} APK builds require CROP_ADVISOR_API_KEY. Add it to %USERPROFILE%\\.gradle\\gradle.properties " +
+                        "as CROP_ADVISOR_API_KEY=your-demo-key, or set it in the build environment."
+        )
+    }
+}
+def validateHttpsBackend = { String buildType ->
+    def parsedBackendUrl
+    try {
+        parsedBackendUrl = URI.create(backendBaseUrl.trim())
+    } catch (IllegalArgumentException error) {
+        throw new GradleException("${buildType} APK builds require a valid HTTPS BACKEND_BASE_URL.", error)
+    }
+    if (!"https".equalsIgnoreCase(parsedBackendUrl.scheme) || !parsedBackendUrl.host) {
+        throw new GradleException("${buildType} APK builds require an HTTPS BACKEND_BASE_URL.")
+    }
+}
+def validateDemoLanHost = {
+    def octets = demoLanHost.trim().tokenize(".")
+    if (octets.size() != 4 || octets.any { !(it ==~ /\d{1,3}/) || it.toInteger() > 255 }) {
+        throw new GradleException("Wi-Fi demo APK builds require DEMO_LAN_HOST set to the laptop's private IPv4 address.")
+    }
+    def address = octets.collect { it.toInteger() }
+    def isPrivate = address[0] == 10 ||
+            (address[0] == 172 && address[1] >= 16 && address[1] <= 31) ||
+            (address[0] == 192 && address[1] == 168)
+    if (!isPrivate) {
+        throw new GradleException("DEMO_LAN_HOST must be a private LAN address (10.x, 172.16-31.x, or 192.168.x).")
+    }
+}
+
+tasks.configureEach {
+    if (name == "preReleaseBuild" || name ==~ /pre.*ReleaseBuild/) {
+        doFirst {
+            validateApiKey("Release")
+            validateHttpsBackend("Release")
+        }
+    }
+
+    if (name ==~ /package.*Debug/) {
+        doFirst {
+            validateApiKey("Debug")
+            if (name.contains("DemoWifi")) {
+                validateDemoLanHost()
+            }
+            if (name.contains("Render") || name == "packageDebug") {
+                validateHttpsBackend("Debug")
+            }
+        }
+    }
+}
+
+android {
+    namespace 'com.cropexpert.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.cropexpert.app"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+        buildConfigField "String", "BACKEND_BASE_URL",
+                groovy.json.JsonOutput.toJson(backendBaseUrl)
+        buildConfigField "String", "CROP_ADVISOR_API_KEY",
+                groovy.json.JsonOutput.toJson(cropAdvisorApiKey)
+    }
+
+    flavorDimensions "connection"
+    productFlavors {
+        render {
+            dimension "connection"
+        }
+        demoWifi {
+            dimension "connection"
+            buildConfigField "String", "BACKEND_BASE_URL",
+                    groovy.json.JsonOutput.toJson(demoWifiBaseUrl)
+        }
+        demoUsb {
+            dimension "connection"
+            buildConfigField "String", "BACKEND_BASE_URL",
+                    groovy.json.JsonOutput.toJson(demoUsbBaseUrl)
+        }
+    }
+
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.5.8'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0'
+    implementation 'androidx.navigation:navigation-compose:2.7.7'
+    implementation 'androidx.activity:activity-compose:1.8.2'
+    implementation platform('androidx.compose:compose-bom:2023.10.01')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-extended'
+    
+    // Maps
+    implementation 'com.google.maps.android:maps-compose:4.3.0'
+    implementation 'com.google.android.gms:play-services-maps:18.2.0'
+    implementation 'com.google.android.gms:play-services-location:21.1.0'
+
+    // Networking
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
+    implementation 'io.coil-kt:coil-compose:2.5.0'
+
+    // Coroutines
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+
+    // Local farm and soil-test persistence
+    implementation 'androidx.room:room-runtime:2.6.1'
+    implementation 'androidx.room:room-ktx:2.6.1'
+    kapt 'androidx.room:room-compiler:2.6.1'
+
+    testImplementation 'junit:junit:4.13.2'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+}

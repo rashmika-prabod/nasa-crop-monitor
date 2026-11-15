@@ -1,0 +1,19 @@
+package com.cropexpert.app.data.repository
+
+import com.cropexpert.app.data.api.RetrofitClient
+import com.cropexpert.app.domain.model.CropRecommendationResponse
+
+class CropAdvisorRepository {
+    suspend fun getRecommendations(
+        latitude: Double,
+        longitude: Double,
+        soilPH: Double?,
+        fieldBoundary: String?,
+        baseUrl: String,
+        apiKey: String,
+        rotationWindowMonths: Int? = null
+    ): CropRecommendationResponse =
+        RetrofitClient.createApi(baseUrl).getCropRecommendations(
+            latitude, longitude, soilPH, fieldBoundary, apiKey, rotationWindowMonths
+        )
+}

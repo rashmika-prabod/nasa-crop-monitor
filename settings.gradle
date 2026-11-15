@@ -1,0 +1,2 @@
+rootProject.name = "nasa-crop-monitor"
+include ':frontend:app'

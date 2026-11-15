@@ -1,0 +1,8 @@
+    fastapi
+    uvicorn
+    earthengine-api
+    pandas
+    google-auth
+    numpy
+    scipy
+    statsmodels
